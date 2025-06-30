@@ -367,7 +367,7 @@ var sudoku = (function() {
 		for (var s in elimValues) {
 			if (elimValues[s].length == 1 && !values[s]) {
 				hintSquares.push(s);
-			} 
+			}
 		}
 		if (hintSquares.length > 0) {
 			return {
@@ -700,8 +700,4 @@ var sudoku = (function() {
 	return module;
 })();
 
-if (typeof exports !== 'undefined') {
-	for (var i in sudoku) {
-		exports[i] = sudoku[i];
-	}
-}
+export default sudoku;

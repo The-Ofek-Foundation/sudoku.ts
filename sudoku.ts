@@ -968,6 +968,193 @@ function detectHiddenQuads(candidates: Candidates): { squares: [Square, Square, 
 	return results;
 }
 
+// STAGE 4: INTERSECTION REMOVAL STRATEGIES
+
+/**
+ * Detects pointing pairs/triples - when a digit appears in only one line within a box
+ */
+function detectPointingPairs(candidates: Candidates): { digit: Digit; squares: Square[]; box: Unit; line: Unit; lineType: 'row' | 'column'; eliminationCells: Square[] }[] {
+	const results: { digit: Digit; squares: Square[]; box: Unit; line: Unit; lineType: 'row' | 'column'; eliminationCells: Square[] }[] = [];
+	
+	// Check each box
+	const groupCols = ['ABC', 'DEF', 'GHI'];
+	const groupRows = ['123', '456', '789'];
+	
+	for (let c = 0; c < groupCols.length; c++) {
+		for (let r = 0; r < groupRows.length; r++) {
+			const boxSquares = cross(chars(groupCols[c]), chars(groupRows[r]));
+			
+			// For each digit, check if it appears only in one row or column within this box
+			for (const digit of DIGITS) {
+				const digitSquares = boxSquares.filter(square => 
+					candidates[square] && candidates[square].has(digit)
+				);
+				
+				if (digitSquares.length >= 2 && digitSquares.length <= 3) {
+					// Check if all squares are in the same row
+					const rows = new Set(digitSquares.map(square => square[1]));
+					if (rows.size === 1) {
+						const row = Array.from(rows)[0];
+						const rowSquares = cross(COLS, [row]);
+						
+						// Find eliminations - other squares in the same row but outside this box
+						const eliminationCells = rowSquares.filter(square => 
+							!boxSquares.includes(square) && 
+							candidates[square] && 
+							candidates[square].has(digit)
+						);
+						
+						if (eliminationCells.length > 0) {
+							results.push({
+								digit,
+								squares: digitSquares,
+								box: boxSquares,
+								line: rowSquares,
+								lineType: 'row',
+								eliminationCells
+							});
+						}
+					}
+					
+					// Check if all squares are in the same column
+					const cols = new Set(digitSquares.map(square => square[0]));
+					if (cols.size === 1) {
+						const col = Array.from(cols)[0];
+						const colSquares = cross([col], ROWS);
+						
+						// Find eliminations - other squares in the same column but outside this box
+						const eliminationCells = colSquares.filter(square => 
+							!boxSquares.includes(square) && 
+							candidates[square] && 
+							candidates[square].has(digit)
+						);
+						
+						if (eliminationCells.length > 0) {
+							results.push({
+								digit,
+								squares: digitSquares,
+								box: boxSquares,
+								line: colSquares,
+								lineType: 'column',
+								eliminationCells
+							});
+						}
+					}
+				}
+			}
+		}
+	}
+	
+	return results;
+}
+
+/**
+ * Detects box/line reduction - when a digit appears only in one box within a line
+ */
+function detectBoxLineReduction(candidates: Candidates): { digit: Digit; squares: Square[]; line: Unit; lineType: 'row' | 'column'; box: Unit; eliminationCells: Square[] }[] {
+	const results: { digit: Digit; squares: Square[]; line: Unit; lineType: 'row' | 'column'; box: Unit; eliminationCells: Square[] }[] = [];
+	
+	// Check each row
+	for (const row of ROWS) {
+		const rowSquares = cross(COLS, [row]);
+		
+		for (const digit of DIGITS) {
+			const digitSquares = rowSquares.filter(square => 
+				candidates[square] && candidates[square].has(digit)
+			);
+			
+			if (digitSquares.length >= 2 && digitSquares.length <= 3) {
+				// Check if all squares are in the same box
+				const boxes = new Set(digitSquares.map(square => {
+					const col = square[0];
+					const boxCol = col >= 'A' && col <= 'C' ? 0 : col >= 'D' && col <= 'F' ? 1 : 2;
+					const boxRow = parseInt(row) >= 1 && parseInt(row) <= 3 ? 0 : parseInt(row) >= 4 && parseInt(row) <= 6 ? 1 : 2;
+					return boxRow * 3 + boxCol;
+				}));
+				
+				if (boxes.size === 1) {
+					// All squares are in the same box
+					const boxIndex = Array.from(boxes)[0];
+					const boxRow = Math.floor(boxIndex / 3);
+					const boxCol = boxIndex % 3;
+					const groupCols = ['ABC', 'DEF', 'GHI'];
+					const groupRows = ['123', '456', '789'];
+					const boxSquares = cross(chars(groupCols[boxCol]), chars(groupRows[boxRow]));
+					
+					// Find eliminations - other squares in the same box but outside this row
+					const eliminationCells = boxSquares.filter(square => 
+						!rowSquares.includes(square) && 
+						candidates[square] && 
+						candidates[square].has(digit)
+					);
+					
+					if (eliminationCells.length > 0) {
+						results.push({
+							digit,
+							squares: digitSquares,
+							line: rowSquares,
+							lineType: 'row',
+							box: boxSquares,
+							eliminationCells
+						});
+					}
+				}
+			}
+		}
+	}
+	
+	// Check each column
+	for (const col of COLS) {
+		const colSquares = cross([col], ROWS);
+		
+		for (const digit of DIGITS) {
+			const digitSquares = colSquares.filter(square => 
+				candidates[square] && candidates[square].has(digit)
+			);
+			
+			if (digitSquares.length >= 2 && digitSquares.length <= 3) {
+				// Check if all squares are in the same box
+				const boxes = new Set(digitSquares.map(square => {
+					const row = square[1];
+					const boxCol = col >= 'A' && col <= 'C' ? 0 : col >= 'D' && col <= 'F' ? 1 : 2;
+					const boxRow = parseInt(row) >= 1 && parseInt(row) <= 3 ? 0 : parseInt(row) >= 4 && parseInt(row) <= 6 ? 1 : 2;
+					return boxRow * 3 + boxCol;
+				}));
+				
+				if (boxes.size === 1) {
+					// All squares are in the same box
+					const boxIndex = Array.from(boxes)[0];
+					const boxRow = Math.floor(boxIndex / 3);
+					const boxCol = boxIndex % 3;
+					const groupCols = ['ABC', 'DEF', 'GHI'];
+					const groupRows = ['123', '456', '789'];
+					const boxSquares = cross(chars(groupCols[boxCol]), chars(groupRows[boxRow]));
+					
+					// Find eliminations - other squares in the same box but outside this column
+					const eliminationCells = boxSquares.filter(square => 
+						!colSquares.includes(square) && 
+						candidates[square] && 
+						candidates[square].has(digit)
+					);
+					
+					if (eliminationCells.length > 0) {
+						results.push({
+							digit,
+							squares: digitSquares,
+							line: colSquares,
+							lineType: 'column',
+							box: boxSquares,
+							eliminationCells
+						});
+					}
+				}
+			}
+		}
+	}
+	
+	return results;
+}
+
 // ============ COMPREHENSIVE HINT SYSTEM ============
 
 interface HintBase {
@@ -1020,7 +1207,19 @@ interface HiddenSetHint extends HintBase {
 	eliminationDigits: Digit[];
 }
 
-type ComprehensiveHint = ErrorHint | MissingCandidateHint | SingleCellHint | NakedSetHint | HiddenSetHint;
+interface IntersectionRemovalHint extends HintBase {
+	type: 'intersection_removal';
+	technique: 'pointing_pairs' | 'box_line_reduction';
+	digit: Digit;
+	squares: Square[];
+	primaryUnit: Unit;
+	primaryUnitType: string;
+	secondaryUnit: Unit;
+	secondaryUnitType: string;
+	eliminationCells: Square[];
+}
+
+type ComprehensiveHint = ErrorHint | MissingCandidateHint | SingleCellHint | NakedSetHint | HiddenSetHint | IntersectionRemovalHint;
 
 /**
  * Helper function to convert values to candidates format for hint detection
@@ -1316,6 +1515,54 @@ function getComprehensiveHint(puzzle: string | Grid, values: Values, providedCan
 				eliminationDigits: eliminations.digits
 			};
 		}
+	}
+	
+	// STAGE 5: INTERSECTION REMOVAL STRATEGIES
+	
+	// Check for pointing pairs/triples
+	const pointingPairs = detectPointingPairs(candidates);
+	if (pointingPairs.length > 0) {
+		const hint = pointingPairs[0];
+		const technique = hint.squares.length === 2 ? 'pointing_pairs' : 'pointing_pairs';
+		const description = hint.squares.length === 2 
+			? `Pointing pair: digit ${hint.digit} in ${hint.lineType} ${hint.line[0][hint.lineType === 'row' ? 1 : 0]} is restricted to cells ${hint.squares.join(',')} in the box. Eliminates ${hint.digit} from ${hint.eliminationCells.join(',')}`
+			: `Pointing triple: digit ${hint.digit} in ${hint.lineType} ${hint.line[0][hint.lineType === 'row' ? 1 : 0]} is restricted to cells ${hint.squares.join(',')} in the box. Eliminates ${hint.digit} from ${hint.eliminationCells.join(',')}`;
+		
+		return {
+			type: 'intersection_removal',
+			technique,
+			description,
+			digit: hint.digit,
+			squares: hint.squares,
+			primaryUnit: hint.box,
+			primaryUnitType: 'box',
+			secondaryUnit: hint.line,
+			secondaryUnitType: hint.lineType,
+			eliminationCells: hint.eliminationCells
+		};
+	}
+	
+	// Check for box/line reduction
+	const boxLineReductions = detectBoxLineReduction(candidates);
+	if (boxLineReductions.length > 0) {
+		const hint = boxLineReductions[0];
+		const lineId = hint.lineType === 'row' 
+			? hint.line[0][1] 
+			: hint.line[0][0];
+		const description = `Box/line reduction: digit ${hint.digit} in ${hint.lineType} ${lineId} is restricted to one box. Eliminates ${hint.digit} from ${hint.eliminationCells.join(',')} in the box`;
+		
+		return {
+			type: 'intersection_removal',
+			technique: 'box_line_reduction',
+			description,
+			digit: hint.digit,
+			squares: hint.squares,
+			primaryUnit: hint.line,
+			primaryUnitType: hint.lineType,
+			secondaryUnit: hint.box,
+			secondaryUnitType: 'box',
+			eliminationCells: hint.eliminationCells
+		};
 	}
 	
 	// No hints found
@@ -1658,7 +1905,8 @@ export type {
 	MissingCandidateHint,
 	SingleCellHint,
 	NakedSetHint,
-	HiddenSetHint
+	HiddenSetHint,
+	IntersectionRemovalHint
 };
 
 export default sudoku;

@@ -1104,9 +1104,9 @@ function findHiddenSetEliminations(squares: Square[], digits: Digit[], candidate
 /**
  * Comprehensive hint detection function that checks all techniques in order of difficulty
  */
-function getComprehensiveHint(puzzle: string | Grid, values: Values): ComprehensiveHint | null {
-	// Convert values to candidates for advanced techniques
-	const candidates = valuesToCandidates(values);
+function getComprehensiveHint(puzzle: string | Grid, values: Values, providedCandidates?: Candidates): ComprehensiveHint | null {
+	// Use provided candidates or convert values to candidates for advanced techniques
+	const candidates = providedCandidates || valuesToCandidates(values);
 	
 	// STAGE 1: MISTAKE DETECTION
 	

@@ -1,4 +1,4 @@
-import sudoku from './sudoku.js';
+import sudoku from './sudoku';
 
 describe('sudoku solver', () => {
 	it('should solve a valid puzzle', () => {

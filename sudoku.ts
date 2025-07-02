@@ -1157,9 +1157,59 @@ function detectBoxLineReduction(candidates: Candidates): { digit: Digit; squares
 
 // ============ COMPREHENSIVE HINT SYSTEM ============
 
+// Centralized difficulty configuration for all hint techniques (1-10 scale)
+const TECHNIQUE_DIFFICULTIES: Record<string, number> = {
+	// Stage 1: Error Detection (1-2)
+	'incorrect_value': 1,
+	'missing_candidate': 2,
+	
+	// Stage 2: Trivial Hints (2-3)
+	'last_remaining_in_box': 2,
+	'last_remaining_in_row': 2,
+	'last_remaining_in_column': 2,
+	'naked_single': 3,
+	
+	// Stage 3: Basic Elimination (4-5)
+	'pointing_pairs': 4,
+	'box_line_reduction': 4,
+	'naked_pairs': 5,
+	
+	// Stage 4: Intermediate Techniques (6-7)
+	'naked_triples': 6,
+	'hidden_pairs': 6,
+	'naked_quads': 7,
+	'hidden_triples': 7,
+	
+	// Stage 5: Advanced Techniques (8-10)
+	'hidden_quads': 8
+};
+
+// Pre-sorted array of techniques ordered by difficulty (easiest first)
+const SORTED_TECHNIQUES = Object.entries(TECHNIQUE_DIFFICULTIES)
+	.sort(([, difficultyA], [, difficultyB]) => difficultyA - difficultyB)
+	.map(([technique]) => technique);
+
+/**
+ * Get the numeric difficulty for a technique (1-10 scale)
+ */
+function getTechniqueDifficulty(technique: string): number {
+	return TECHNIQUE_DIFFICULTIES[technique] || 5; // Default to medium difficulty
+}
+
+/**
+ * Convert numeric difficulty to display category
+ */
+function difficultyToCategory(difficulty: number): 'beginner' | 'easy' | 'medium' | 'hard' {
+	if (difficulty <= 2) return 'beginner';
+	if (difficulty <= 4) return 'easy';
+	if (difficulty <= 7) return 'medium';
+	return 'hard';
+}
+
 interface HintBase {
 	technique: string;
 	description: string;
+	difficulty: number; // Add numeric difficulty to all hints
 }
 
 interface ErrorHint extends HintBase {
@@ -1301,268 +1351,354 @@ function findHiddenSetEliminations(squares: Square[], digits: Digit[], candidate
 }
 
 /**
- * Comprehensive hint detection function that checks all techniques in order of difficulty
+ * Comprehensive hint detection function that checks techniques in order of difficulty
+ * Uses early exit optimization - returns first (easiest) hint found
+ * 
+ * Performance optimization: Instead of finding ALL hints and sorting them,
+ * this function iterates through techniques in pre-sorted difficulty order
+ * and returns immediately when the first hint is found. This is much faster
+ * for complex puzzles that might have many available hints.
  */
 function getComprehensiveHint(puzzle: string | Grid, values: Values, providedCandidates?: Candidates): ComprehensiveHint | null {
 	// Use provided candidates or convert values to candidates for advanced techniques
 	const candidates = providedCandidates || valuesToCandidates(values);
 	
-	// STAGE 1: MISTAKE DETECTION
-	
-	// Check for incorrect values (highest priority)
-	const incorrectValues = detectIncorrectValues(puzzle, values);
-	if (incorrectValues.length > 0) {
-		const error = incorrectValues[0];
-		return {
-			type: 'error',
-			technique: 'incorrect_value',
-			description: `Cell ${error.square} contains ${error.actualValue}, but the correct value is ${error.correctValue}`,
-			square: error.square,
-			actualValue: error.actualValue,
-			correctValue: error.correctValue
-		};
-	}
-	
-	// Check for missing candidates
-	const missingCandidates = detectMissingCandidates(puzzle, values, candidates);
-	if (missingCandidates.length > 0) {
-		const missing = missingCandidates[0];
-		return {
-			type: 'missing_candidate',
-			technique: 'missing_candidate',
-			description: `Cell ${missing.square} is missing candidate ${missing.missingDigit}`,
-			square: missing.square,
-			missingDigit: missing.missingDigit
-		};
-	}
-	
-	// STAGE 2: TRIVIAL HINTS (Single cell solutions)
-	
-	// Check for last remaining in box
-	const lastInBox = detectLastRemainingInBox(values);
-	if (lastInBox.length > 0) {
-		const hint = lastInBox[0];
-		return {
-			type: 'single_cell',
-			technique: 'last_remaining_in_box',
-			description: `Cell ${hint.square} is the last empty cell in its box and must contain ${hint.digit}`,
-			square: hint.square,
-			digit: hint.digit,
-			unit: hint.unit
-		};
-	}
-	
-	// Check for last remaining in row
-	const lastInRow = detectLastRemainingInRow(values);
-	if (lastInRow.length > 0) {
-		const hint = lastInRow[0];
-		return {
-			type: 'single_cell',
-			technique: 'last_remaining_in_row',
-			description: `Cell ${hint.square} is the last empty cell in its row and must contain ${hint.digit}`,
-			square: hint.square,
-			digit: hint.digit,
-			unit: hint.unit
-		};
-	}
-	
-	// Check for last remaining in column
-	const lastInColumn = detectLastRemainingInColumn(values);
-	if (lastInColumn.length > 0) {
-		const hint = lastInColumn[0];
-		return {
-			type: 'single_cell',
-			technique: 'last_remaining_in_column',
-			description: `Cell ${hint.square} is the last empty cell in its column and must contain ${hint.digit}`,
-			square: hint.square,
-			digit: hint.digit,
-			unit: hint.unit
-		};
-	}
-	
-	// Check for naked singles
-	const nakedSingles = detectNakedSingles(candidates);
-	if (nakedSingles.length > 0) {
-		const hint = nakedSingles[0];
-		return {
-			type: 'single_cell',
-			technique: 'naked_single',
-			description: `Cell ${hint.square} has only one possible candidate: ${hint.digit}`,
-			square: hint.square,
-			digit: hint.digit
-		};
-	}
-	
-	// STAGE 3: BASIC HINTS (Naked sets)
-	
-	// Check for naked pairs
-	const nakedPairs = detectNakedPairs(candidates);
-	if (nakedPairs.length > 0) {
-		const hint = nakedPairs[0];
-		const eliminations = findNakedSetEliminations(hint.squares, hint.digits, hint.unit, candidates);
-		if (eliminations.cells.length > 0) {
-			return {
-				type: 'naked_set',
-				technique: 'naked_pairs',
-				description: `Naked pair ${hint.digits.join(',')} found in cells ${hint.squares.join(',')} in ${hint.unitType}. Eliminates ${eliminations.digits.join(',')} from ${eliminations.cells.join(',')}`,
-				squares: hint.squares,
-				digits: hint.digits,
-				unit: hint.unit,
-				unitType: hint.unitType,
-				eliminationCells: eliminations.cells,
-				eliminationDigits: eliminations.digits
-			};
-		}
-	}
-	
-	// Check for naked triples
-	const nakedTriples = detectNakedTriples(candidates);
-	if (nakedTriples.length > 0) {
-		const hint = nakedTriples[0];
-		const eliminations = findNakedSetEliminations(hint.squares, hint.digits, hint.unit, candidates);
-		if (eliminations.cells.length > 0) {
-			return {
-				type: 'naked_set',
-				technique: 'naked_triples',
-				description: `Naked triple ${hint.digits.join(',')} found in cells ${hint.squares.join(',')} in ${hint.unitType}. Eliminates ${eliminations.digits.join(',')} from ${eliminations.cells.join(',')}`,
-				squares: hint.squares,
-				digits: hint.digits,
-				unit: hint.unit,
-				unitType: hint.unitType,
-				eliminationCells: eliminations.cells,
-				eliminationDigits: eliminations.digits
-			};
-		}
-	}
-	
-	// Check for naked quads
-	const nakedQuads = detectNakedQuads(candidates);
-	if (nakedQuads.length > 0) {
-		const hint = nakedQuads[0];
-		const eliminations = findNakedSetEliminations(hint.squares, hint.digits, hint.unit, candidates);
-		if (eliminations.cells.length > 0) {
-			return {
-				type: 'naked_set',
-				technique: 'naked_quads',
-				description: `Naked quad ${hint.digits.join(',')} found in cells ${hint.squares.join(',')} in ${hint.unitType}. Eliminates ${eliminations.digits.join(',')} from ${eliminations.cells.join(',')}`,
-				squares: hint.squares,
-				digits: hint.digits,
-				unit: hint.unit,
-				unitType: hint.unitType,
-				eliminationCells: eliminations.cells,
-				eliminationDigits: eliminations.digits
-			};
-		}
-	}
-	
-	// STAGE 4: ADVANCED HINTS (Hidden sets)
-	
-	// Check for hidden pairs
-	const hiddenPairs = detectHiddenPairs(candidates);
-	if (hiddenPairs.length > 0) {
-		const hint = hiddenPairs[0];
-		const eliminations = findHiddenSetEliminations(hint.squares, hint.digits, candidates);
-		if (eliminations.cells.length > 0) {
-			return {
-				type: 'hidden_set',
-				technique: 'hidden_pairs',
-				description: `Hidden pair ${hint.digits.join(',')} found in cells ${hint.squares.join(',')} in ${hint.unitType}. Eliminates ${eliminations.digits.join(',')} from these cells`,
-				squares: hint.squares,
-				digits: hint.digits,
-				unit: hint.unit,
-				unitType: hint.unitType,
-				eliminationCells: eliminations.cells,
-				eliminationDigits: eliminations.digits
-			};
-		}
-	}
-	
-	// Check for hidden triples
-	const hiddenTriples = detectHiddenTriples(candidates);
-	if (hiddenTriples.length > 0) {
-		const hint = hiddenTriples[0];
-		const eliminations = findHiddenSetEliminations(hint.squares, hint.digits, candidates);
-		if (eliminations.cells.length > 0) {
-			return {
-				type: 'hidden_set',
-				technique: 'hidden_triples',
-				description: `Hidden triple ${hint.digits.join(',')} found in cells ${hint.squares.join(',')} in ${hint.unitType}. Eliminates ${eliminations.digits.join(',')} from these cells`,
-				squares: hint.squares,
-				digits: hint.digits,
-				unit: hint.unit,
-				unitType: hint.unitType,
-				eliminationCells: eliminations.cells,
-				eliminationDigits: eliminations.digits
-			};
-		}
-	}
-	
-	// Check for hidden quads
-	const hiddenQuads = detectHiddenQuads(candidates);
-	if (hiddenQuads.length > 0) {
-		const hint = hiddenQuads[0];
-		const eliminations = findHiddenSetEliminations(hint.squares, hint.digits, candidates);
-		if (eliminations.cells.length > 0) {
-			return {
-				type: 'hidden_set',
-				technique: 'hidden_quads',
-				description: `Hidden quad ${hint.digits.join(',')} found in cells ${hint.squares.join(',')} in ${hint.unitType}. Eliminates ${eliminations.digits.join(',')} from these cells`,
-				squares: hint.squares,
-				digits: hint.digits,
-				unit: hint.unit,
-				unitType: hint.unitType,
-				eliminationCells: eliminations.cells,
-				eliminationDigits: eliminations.digits
-			};
-		}
-	}
-	
-	// STAGE 5: INTERSECTION REMOVAL STRATEGIES
-	
-	// Check for pointing pairs/triples
-	const pointingPairs = detectPointingPairs(candidates);
-	if (pointingPairs.length > 0) {
-		const hint = pointingPairs[0];
-		const technique = hint.squares.length === 2 ? 'pointing_pairs' : 'pointing_pairs';
-		const description = hint.squares.length === 2 
-			? `Pointing pair: digit ${hint.digit} in ${hint.lineType} ${hint.line[0][hint.lineType === 'row' ? 1 : 0]} is restricted to cells ${hint.squares.join(',')} in the box. Eliminates ${hint.digit} from ${hint.eliminationCells.join(',')}`
-			: `Pointing triple: digit ${hint.digit} in ${hint.lineType} ${hint.line[0][hint.lineType === 'row' ? 1 : 0]} is restricted to cells ${hint.squares.join(',')} in the box. Eliminates ${hint.digit} from ${hint.eliminationCells.join(',')}`;
+	// Iterate through techniques in order of difficulty (easiest first)
+	for (const technique of SORTED_TECHNIQUES) {
+		let hint: ComprehensiveHint | null = null;
 		
-		return {
-			type: 'intersection_removal',
-			technique,
-			description,
-			digit: hint.digit,
-			squares: hint.squares,
-			primaryUnit: hint.box,
-			primaryUnitType: 'box',
-			secondaryUnit: hint.line,
-			secondaryUnitType: hint.lineType,
-			eliminationCells: hint.eliminationCells
-		};
-	}
-	
-	// Check for box/line reduction
-	const boxLineReductions = detectBoxLineReduction(candidates);
-	if (boxLineReductions.length > 0) {
-		const hint = boxLineReductions[0];
-		const lineId = hint.lineType === 'row' 
-			? hint.line[0][1] 
-			: hint.line[0][0];
-		const description = `Box/line reduction: digit ${hint.digit} in ${hint.lineType} ${lineId} is restricted to one box. Eliminates ${hint.digit} from ${hint.eliminationCells.join(',')} in the box`;
+		// Use switch statement to call appropriate detection function
+		switch (technique) {
+			case 'incorrect_value': {
+				const incorrectValues = detectIncorrectValues(puzzle, values);
+				if (incorrectValues.length > 0) {
+					const error = incorrectValues[0];
+					hint = {
+						type: 'error',
+						technique: 'incorrect_value',
+						description: `Cell ${error.square} contains ${error.actualValue}, but the correct value is ${error.correctValue}`,
+						difficulty: getTechniqueDifficulty('incorrect_value'),
+						square: error.square,
+						actualValue: error.actualValue,
+						correctValue: error.correctValue
+					};
+				}
+				break;
+			}
+			
+			case 'missing_candidate': {
+				const missingCandidates = detectMissingCandidates(puzzle, values, candidates);
+				if (missingCandidates.length > 0) {
+					const missing = missingCandidates[0];
+					hint = {
+						type: 'missing_candidate',
+						technique: 'missing_candidate',
+						description: `Cell ${missing.square} is missing candidate ${missing.missingDigit}`,
+						difficulty: getTechniqueDifficulty('missing_candidate'),
+						square: missing.square,
+						missingDigit: missing.missingDigit
+					};
+				}
+				break;
+			}
+			
+			case 'last_remaining_in_box': {
+				const lastInBox = detectLastRemainingInBox(values);
+				if (lastInBox.length > 0) {
+					const hintData = lastInBox[0];
+					hint = {
+						type: 'single_cell',
+						technique: 'last_remaining_in_box',
+						description: `Cell ${hintData.square} is the last empty cell in its box and must contain ${hintData.digit}`,
+						difficulty: getTechniqueDifficulty('last_remaining_in_box'),
+						square: hintData.square,
+						digit: hintData.digit,
+						unit: hintData.unit
+					};
+				}
+				break;
+			}
+			
+			case 'last_remaining_in_row': {
+				const lastInRow = detectLastRemainingInRow(values);
+				if (lastInRow.length > 0) {
+					const hintData = lastInRow[0];
+					hint = {
+						type: 'single_cell',
+						technique: 'last_remaining_in_row',
+						description: `Cell ${hintData.square} is the last empty cell in its row and must contain ${hintData.digit}`,
+						difficulty: getTechniqueDifficulty('last_remaining_in_row'),
+						square: hintData.square,
+						digit: hintData.digit,
+						unit: hintData.unit
+					};
+				}
+				break;
+			}
+			
+			case 'last_remaining_in_column': {
+				const lastInColumn = detectLastRemainingInColumn(values);
+				if (lastInColumn.length > 0) {
+					const hintData = lastInColumn[0];
+					hint = {
+						type: 'single_cell',
+						technique: 'last_remaining_in_column',
+						description: `Cell ${hintData.square} is the last empty cell in its column and must contain ${hintData.digit}`,
+						difficulty: getTechniqueDifficulty('last_remaining_in_column'),
+						square: hintData.square,
+						digit: hintData.digit,
+						unit: hintData.unit
+					};
+				}
+				break;
+			}
+			
+			case 'naked_single': {
+				const nakedSingles = detectNakedSingles(candidates);
+				if (nakedSingles.length > 0) {
+					const hintData = nakedSingles[0];
+					hint = {
+						type: 'single_cell',
+						technique: 'naked_single',
+						description: `Cell ${hintData.square} has only one possible candidate: ${hintData.digit}`,
+						difficulty: getTechniqueDifficulty('naked_single'),
+						square: hintData.square,
+						digit: hintData.digit
+					};
+				}
+				break;
+			}
+			
+			case 'pointing_pairs': {
+				const pointingPairs = detectPointingPairs(candidates);
+				if (pointingPairs.length > 0) {
+					// Check each pointing pair until we find one with eliminations
+					for (let i = 0; i < pointingPairs.length; i++) {
+						const hintData = pointingPairs[i];
+						if (hintData.eliminationCells.length > 0) {
+							const description = hintData.squares.length === 2 
+								? `Pointing pair: digit ${hintData.digit} in ${hintData.lineType} ${hintData.line[0][hintData.lineType === 'row' ? 1 : 0]} is restricted to cells ${hintData.squares.join(',')} in the box. Eliminates ${hintData.digit} from ${hintData.eliminationCells.join(',')}`
+								: `Pointing triple: digit ${hintData.digit} in ${hintData.lineType} ${hintData.line[0][hintData.lineType === 'row' ? 1 : 0]} is restricted to cells ${hintData.squares.join(',')} in the box. Eliminates ${hintData.digit} from ${hintData.eliminationCells.join(',')}`;
+							
+							hint = {
+								type: 'intersection_removal',
+								technique: 'pointing_pairs',
+								description,
+								difficulty: getTechniqueDifficulty('pointing_pairs'),
+								digit: hintData.digit,
+								squares: hintData.squares,
+								primaryUnit: hintData.box,
+								primaryUnitType: 'box',
+								secondaryUnit: hintData.line,
+								secondaryUnitType: hintData.lineType,
+								eliminationCells: hintData.eliminationCells
+							};
+							break; // Found a useful hint, stop checking other pairs
+						}
+					}
+				}
+				break;
+			}
+			
+			case 'box_line_reduction': {
+				const boxLineReductions = detectBoxLineReduction(candidates);
+				if (boxLineReductions.length > 0) {
+					// Check each box line reduction until we find one with eliminations
+					for (let i = 0; i < boxLineReductions.length; i++) {
+						const hintData = boxLineReductions[i];
+						if (hintData.eliminationCells.length > 0) {
+							const lineId = hintData.lineType === 'row' 
+								? hintData.line[0][1] 
+								: hintData.line[0][0];
+							const description = `Box/line reduction: digit ${hintData.digit} in ${hintData.lineType} ${lineId} is restricted to one box. Eliminates ${hintData.digit} from ${hintData.eliminationCells.join(',')} in the box`;
+							
+							hint = {
+								type: 'intersection_removal',
+								technique: 'box_line_reduction',
+								description,
+								difficulty: getTechniqueDifficulty('box_line_reduction'),
+								digit: hintData.digit,
+								squares: hintData.squares,
+								primaryUnit: hintData.line,
+								primaryUnitType: hintData.lineType,
+								secondaryUnit: hintData.box,
+								secondaryUnitType: 'box',
+								eliminationCells: hintData.eliminationCells
+							};
+							break; // Found a useful hint, stop checking other reductions
+						}
+					}
+				}
+				break;
+			}
+			
+			case 'naked_pairs': {
+				const nakedPairs = detectNakedPairs(candidates);
+				if (nakedPairs.length > 0) {
+					// Check each naked pair until we find one with eliminations
+					for (let i = 0; i < nakedPairs.length; i++) {
+						const hintData = nakedPairs[i];
+						const eliminations = findNakedSetEliminations(hintData.squares, hintData.digits, hintData.unit, candidates);
+						if (eliminations.cells.length > 0) {
+							hint = {
+								type: 'naked_set',
+								technique: 'naked_pairs',
+								description: `Naked pair ${hintData.digits.join(',')} found in cells ${hintData.squares.join(',')} in ${hintData.unitType}. Eliminates ${eliminations.digits.join(',')} from ${eliminations.cells.join(',')}`,
+								difficulty: getTechniqueDifficulty('naked_pairs'),
+								squares: hintData.squares,
+								digits: hintData.digits,
+								unit: hintData.unit,
+								unitType: hintData.unitType,
+								eliminationCells: eliminations.cells,
+								eliminationDigits: eliminations.digits
+							};
+							break; // Found a useful hint, stop checking other pairs
+						}
+					}
+				}
+				break;
+			}
+			
+			case 'naked_triples': {
+				const nakedTriples = detectNakedTriples(candidates);
+				if (nakedTriples.length > 0) {
+					// Check each naked triple until we find one with eliminations
+					for (let i = 0; i < nakedTriples.length; i++) {
+						const hintData = nakedTriples[i];
+						const eliminations = findNakedSetEliminations(hintData.squares, hintData.digits, hintData.unit, candidates);
+						if (eliminations.cells.length > 0) {
+							hint = {
+								type: 'naked_set',
+								technique: 'naked_triples',
+								description: `Naked triple ${hintData.digits.join(',')} found in cells ${hintData.squares.join(',')} in ${hintData.unitType}. Eliminates ${eliminations.digits.join(',')} from ${eliminations.cells.join(',')}`,
+								difficulty: getTechniqueDifficulty('naked_triples'),
+								squares: hintData.squares,
+								digits: hintData.digits,
+								unit: hintData.unit,
+								unitType: hintData.unitType,
+								eliminationCells: eliminations.cells,
+								eliminationDigits: eliminations.digits
+							};
+							break; // Found a useful hint, stop checking other triples
+						}
+					}
+				}
+				break;
+			}
+			
+			case 'hidden_pairs': {
+				const hiddenPairs = detectHiddenPairs(candidates);
+				if (hiddenPairs.length > 0) {
+					// Check each hidden pair until we find one with eliminations
+					for (let i = 0; i < hiddenPairs.length; i++) {
+						const hintData = hiddenPairs[i];
+						const eliminations = findHiddenSetEliminations(hintData.squares, hintData.digits, candidates);
+						if (eliminations.cells.length > 0) {
+							hint = {
+								type: 'hidden_set',
+								technique: 'hidden_pairs',
+								description: `Hidden pair ${hintData.digits.join(',')} found in cells ${hintData.squares.join(',')} in ${hintData.unitType}. Eliminates ${eliminations.digits.join(',')} from these cells`,
+								difficulty: getTechniqueDifficulty('hidden_pairs'),
+								squares: hintData.squares,
+								digits: hintData.digits,
+								unit: hintData.unit,
+								unitType: hintData.unitType,
+								eliminationCells: eliminations.cells,
+								eliminationDigits: eliminations.digits
+							};
+							break; // Found a useful hint, stop checking other pairs
+						}
+					}
+				}
+				break;
+			}
+			
+			case 'naked_quads': {
+				const nakedQuads = detectNakedQuads(candidates);
+				if (nakedQuads.length > 0) {
+					// Check each naked quad until we find one with eliminations
+					for (let i = 0; i < nakedQuads.length; i++) {
+						const hintData = nakedQuads[i];
+						const eliminations = findNakedSetEliminations(hintData.squares, hintData.digits, hintData.unit, candidates);
+						if (eliminations.cells.length > 0) {
+							hint = {
+								type: 'naked_set',
+								technique: 'naked_quads',
+								description: `Naked quad ${hintData.digits.join(',')} found in cells ${hintData.squares.join(',')} in ${hintData.unitType}. Eliminates ${eliminations.digits.join(',')} from ${eliminations.cells.join(',')}`,
+								difficulty: getTechniqueDifficulty('naked_quads'),
+								squares: hintData.squares,
+								digits: hintData.digits,
+								unit: hintData.unit,
+								unitType: hintData.unitType,
+								eliminationCells: eliminations.cells,
+								eliminationDigits: eliminations.digits
+							};
+							break; // Found a useful hint, stop checking other quads
+						}
+					}
+				}
+				break;
+			}
+			
+			case 'hidden_triples': {
+				const hiddenTriples = detectHiddenTriples(candidates);
+				if (hiddenTriples.length > 0) {
+					// Check each hidden triple until we find one with eliminations
+					for (let i = 0; i < hiddenTriples.length; i++) {
+						const hintData = hiddenTriples[i];
+						const eliminations = findHiddenSetEliminations(hintData.squares, hintData.digits, candidates);
+						if (eliminations.cells.length > 0) {
+							hint = {
+								type: 'hidden_set',
+								technique: 'hidden_triples',
+								description: `Hidden triple ${hintData.digits.join(',')} found in cells ${hintData.squares.join(',')} in ${hintData.unitType}. Eliminates ${eliminations.digits.join(',')} from these cells`,
+								difficulty: getTechniqueDifficulty('hidden_triples'),
+								squares: hintData.squares,
+								digits: hintData.digits,
+								unit: hintData.unit,
+								unitType: hintData.unitType,
+								eliminationCells: eliminations.cells,
+								eliminationDigits: eliminations.digits
+							};
+							break; // Found a useful hint, stop checking other triples
+						}
+					}
+				}
+				break;
+			}
+			
+			case 'hidden_quads': {
+				const hiddenQuads = detectHiddenQuads(candidates);
+				if (hiddenQuads.length > 0) {
+					// Check each hidden quad until we find one with eliminations
+					for (let i = 0; i < hiddenQuads.length; i++) {
+						const hintData = hiddenQuads[i];
+						const eliminations = findHiddenSetEliminations(hintData.squares, hintData.digits, candidates);
+						if (eliminations.cells.length > 0) {
+							hint = {
+								type: 'hidden_set',
+								technique: 'hidden_quads',
+								description: `Hidden quad ${hintData.digits.join(',')} found in cells ${hintData.squares.join(',')} in ${hintData.unitType}. Eliminates ${eliminations.digits.join(',')} from these cells`,
+								difficulty: getTechniqueDifficulty('hidden_quads'),
+								squares: hintData.squares,
+								digits: hintData.digits,
+								unit: hintData.unit,
+								unitType: hintData.unitType,
+								eliminationCells: eliminations.cells,
+								eliminationDigits: eliminations.digits
+							};
+							break; // Found a useful hint, stop checking other quads
+						}
+					}
+				}
+				break;
+			}
+		}
 		
-		return {
-			type: 'intersection_removal',
-			technique: 'box_line_reduction',
-			description,
-			digit: hint.digit,
-			squares: hint.squares,
-			primaryUnit: hint.line,
-			primaryUnitType: hint.lineType,
-			secondaryUnit: hint.box,
-			secondaryUnitType: 'box',
-			eliminationCells: hint.eliminationCells
-		};
+		// If we found a hint, return it immediately (early exit optimization)
+		if (hint) {
+			return hint;
+		}
 	}
 	
 	// No hints found
@@ -1868,6 +2004,8 @@ const sudoku = {
 	getConflicts,
 	getHint,
 	getComprehensiveHint,
+	getTechniqueDifficulty,
+	difficultyToCategory,
 	isUnique,
 	generate,
 	serialize,
@@ -1908,5 +2046,7 @@ export type {
 	HiddenSetHint,
 	IntersectionRemovalHint
 };
+
+export { getTechniqueDifficulty, difficultyToCategory, getComprehensiveHint };
 
 export default sudoku;

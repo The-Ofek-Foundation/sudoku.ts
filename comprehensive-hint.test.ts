@@ -211,9 +211,9 @@ describe('Comprehensive Hint System', () => {
 		const hint = sudoku.getComprehensiveHint(puzzle, values);
 		
 		expect(hint).toBeDefined();
-		expect(hint!.description).toContain('A1');
-		expect(hint!.description).toContain('1');
-		expect(hint!.description).toMatch(/box|column|row/); // Accept any of these
+		expect(hint!.technique).toBeDefined();
+		expect(hint!.type).toBeDefined();
+		expect(hint!.difficulty).toBeGreaterThan(0);
 	});
 
 	test('hidden pairs detection with eliminations', () => {

@@ -31,6 +31,7 @@ import {
 	PEERS,
 	chars,
 	cross,
+	getUnitType,
 } from '../core/utils.js';
 
 import { solve } from '../core/solver.js';
@@ -292,12 +293,7 @@ function detectNakedPairs(candidates: Candidates): {
 						candidates1[0] === candidates2[0] &&
 						candidates1[1] === candidates2[1]
 					) {
-						let unitType = 'box';
-						if (unit[0].charAt(0) === unit[8].charAt(0)) {
-							unitType = 'row';
-						} else if (unit[0].charAt(1) === unit[8].charAt(1)) {
-							unitType = 'column';
-						}
+						const unitType = getUnitType(unit);
 
 						results.push({
 							squares: [square1, square2],
@@ -355,12 +351,7 @@ function detectNakedTriples(candidates: Candidates): {
 
 					// Check if the combined candidates contain exactly 3 digits
 					if (combinedCandidates.size === 3) {
-						let unitType = 'box';
-						if (unit[0].charAt(0) === unit[8].charAt(0)) {
-							unitType = 'row';
-						} else if (unit[0].charAt(1) === unit[8].charAt(1)) {
-							unitType = 'column';
-						}
+						const unitType = getUnitType(unit);
 
 						results.push({
 							squares: [square1, square2, square3],
@@ -421,12 +412,7 @@ function detectNakedQuads(candidates: Candidates): {
 
 						// Check if the combined candidates contain exactly 4 digits
 						if (combinedCandidates.size === 4) {
-							let unitType = 'box';
-							if (unit[0].charAt(0) === unit[8].charAt(0)) {
-								unitType = 'row';
-							} else if (unit[0].charAt(1) === unit[8].charAt(1)) {
-								unitType = 'column';
-							}
+							const unitType = getUnitType(unit);
 
 							results.push({
 								squares: [square1, square2, square3, square4],
@@ -493,12 +479,7 @@ function detectHiddenPairs(candidates: Candidates): {
 					positions1[0] === positions2[0] &&
 					positions1[1] === positions2[1]
 				) {
-					let unitType = 'box';
-					if (unit[0].charAt(0) === unit[8].charAt(0)) {
-						unitType = 'row';
-					} else if (unit[0].charAt(1) === unit[8].charAt(1)) {
-						unitType = 'column';
-					}
+					const unitType = getUnitType(unit);
 
 					results.push({
 						squares: [positions1[0], positions1[1]],
@@ -571,12 +552,7 @@ function detectHiddenTriples(candidates: Candidates): {
 						digitPositions[digit3] &&
 						digitPositions[digit3].length <= 3
 					) {
-						let unitType = 'box';
-						if (unit[0].charAt(0) === unit[8].charAt(0)) {
-							unitType = 'row';
-						} else if (unit[0].charAt(1) === unit[8].charAt(1)) {
-							unitType = 'column';
-						}
+						const unitType = getUnitType(unit);
 
 						const squareArray = Array.from(allPositions);
 						results.push({

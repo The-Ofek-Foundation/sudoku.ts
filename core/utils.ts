@@ -292,3 +292,25 @@ export function valuesToCandidates(values: Values): Candidates {
 
 	return candidates;
 }
+
+/**
+ * Determines the type of a sudoku unit (row, column, or box)
+ * @param unit - Array of squares that form a unit
+ * @returns 'row', 'column', or 'box'
+ */
+export function getUnitType(unit: Unit): 'row' | 'column' | 'box' {
+	if (unit.length < 9) return 'box'; // Safety check
+
+	// Check if all squares are in the same row (same first character)
+	if (unit[0].charAt(0) === unit[8].charAt(0)) {
+		return 'row';
+	}
+
+	// Check if all squares are in the same column (same second character)
+	if (unit[0].charAt(1) === unit[8].charAt(1)) {
+		return 'column';
+	}
+
+	// Otherwise it's a box
+	return 'box';
+}

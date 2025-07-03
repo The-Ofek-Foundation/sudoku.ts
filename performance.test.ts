@@ -4,7 +4,8 @@ import { getComprehensiveHint } from './sudoku';
 describe('getComprehensiveHint Performance', () => {
 	it('should return hints quickly with early exit optimization', () => {
 		// Easy puzzle with multiple possible hints - should find the easiest one quickly
-		const easyPuzzle = '4.....8.5.3..........7......2.....6.....8.4......1.......6.3.7.5..2.....1.4......';
+		const easyPuzzle =
+			'4.....8.5.3..........7......2.....6.....8.4......1.......6.3.7.5..2.....1.4......';
 		const values = {} as any;
 		for (let i = 0; i < 81; i++) {
 			const char = easyPuzzle[i];
@@ -25,17 +26,20 @@ describe('getComprehensiveHint Performance', () => {
 		// Should find a hint quickly (< 50ms is reasonable for early exit)
 		expect(hint).toBeTruthy();
 		expect(duration).toBeLessThan(50);
-		
+
 		// Should find the easiest available hint (whatever the minimum difficulty is for this puzzle)
 		expect(hint!.difficulty).toBeGreaterThan(0);
 		expect(hint!.difficulty).toBeLessThanOrEqual(10);
-		
-		console.log(`Hint detection took ${duration.toFixed(2)}ms, found ${hint!.technique} (difficulty ${hint!.difficulty})`);
+
+		console.log(
+			`Hint detection took ${duration.toFixed(2)}ms, found ${hint!.technique} (difficulty ${hint!.difficulty})`,
+		);
 	});
 
 	it('should handle complex puzzles efficiently', () => {
 		// More complex puzzle that might have many hints available
-		const complexPuzzle = '85...24..72......9..4.........1.7..23.5...9...4...........8..7..17..........36.4.';
+		const complexPuzzle =
+			'85...24..72......9..4.........1.7..23.5...9...4...........8..7..17..........36.4.';
 		const values = {} as any;
 		for (let i = 0; i < 81; i++) {
 			const char = complexPuzzle[i];
@@ -54,7 +58,7 @@ describe('getComprehensiveHint Performance', () => {
 			const hint = getComprehensiveHint(complexPuzzle, values);
 			const end = performance.now();
 			times.push(end - start);
-			
+
 			expect(hint).toBeTruthy();
 		}
 
@@ -64,7 +68,9 @@ describe('getComprehensiveHint Performance', () => {
 		// Average should be very fast due to early exit
 		expect(avgTime).toBeLessThan(25);
 		expect(maxTime).toBeLessThan(50);
-		
-		console.log(`Average hint detection: ${avgTime.toFixed(2)}ms, max: ${maxTime.toFixed(2)}ms`);
+
+		console.log(
+			`Average hint detection: ${avgTime.toFixed(2)}ms, max: ${maxTime.toFixed(2)}ms`,
+		);
 	});
 });

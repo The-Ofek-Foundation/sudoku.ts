@@ -206,7 +206,10 @@ function some<T>(seq: T[], func: (item: T) => any): any {
 	return false;
 }
 
-function first<T>(list: T[], func: (item: T, index?: number) => boolean): T | null {
+function first<T>(
+	list: T[],
+	func: (item: T, index?: number) => boolean,
+): T | null {
 	for (let i = 0; i < list.length; i++) {
 		if (func(list[i], i)) {
 			return list[i];
@@ -436,56 +439,67 @@ function getHint(puzzle: string | Grid, values: Values): Hint {
 /**
  * Detects values that are placed incorrectly (don't match the solution)
  */
-function detectIncorrectValues(puzzle: string | Grid, values: Values): { square: Square; actualValue: Digit; correctValue: Digit }[] {
+function detectIncorrectValues(
+	puzzle: string | Grid,
+	values: Values,
+): { square: Square; actualValue: Digit; correctValue: Digit }[] {
 	const solved = solve(puzzle);
 	if (!solved) {
 		return [];
 	}
 
-	const mistakes: { square: Square; actualValue: Digit; correctValue: Digit }[] = [];
-	
+	const mistakes: {
+		square: Square;
+		actualValue: Digit;
+		correctValue: Digit;
+	}[] = [];
+
 	for (const square in values) {
 		const guess = values[square];
 		if (guess && guess.length === 1 && guess !== solved[square]) {
 			mistakes.push({
 				square,
 				actualValue: guess,
-				correctValue: solved[square]
+				correctValue: solved[square],
 			});
 		}
 	}
-	
+
 	return mistakes;
 }
 
 /**
  * Detects cells that are missing candidates for their correct solution digit
  */
-function detectMissingCandidates(puzzle: string | Grid, values: Values, candidates: Candidates): { square: Square; missingDigit: Digit }[] {
+function detectMissingCandidates(
+	puzzle: string | Grid,
+	values: Values,
+	candidates: Candidates,
+): { square: Square; missingDigit: Digit }[] {
 	const solved = solve(puzzle);
 	if (!solved) {
 		return [];
 	}
 
 	const missingCandidates: { square: Square; missingDigit: Digit }[] = [];
-	
+
 	for (const square in solved) {
 		// Skip cells that already have values
 		if (values[square] && values[square].length === 1) {
 			continue;
 		}
-		
+
 		const correctDigit = solved[square];
 		const cellCandidates = candidates[square] || new Set();
-		
+
 		if (!cellCandidates.has(correctDigit)) {
 			missingCandidates.push({
 				square,
-				missingDigit: correctDigit
+				missingDigit: correctDigit,
 			});
 		}
 	}
-	
+
 	return missingCandidates;
 }
 
@@ -494,36 +508,40 @@ function detectMissingCandidates(puzzle: string | Grid, values: Values, candidat
 /**
  * Detects cells that are the last remaining empty cell in a box
  */
-function detectLastRemainingInBox(values: Values): { square: Square; digit: Digit; unit: Unit }[] {
+function detectLastRemainingInBox(
+	values: Values,
+): { square: Square; digit: Digit; unit: Unit }[] {
 	const results: { square: Square; digit: Digit; unit: Unit }[] = [];
-	
+
 	// Check each 3x3 box
 	const groupRows = ['ABC', 'DEF', 'GHI'];
 	const groupCols = ['123', '456', '789'];
-	
+
 	for (let r = 0; r < groupRows.length; r++) {
 		for (let c = 0; c < groupCols.length; c++) {
 			const boxSquares = cross(chars(groupRows[r]), chars(groupCols[c]));
-			const emptyCells = boxSquares.filter(square => !values[square] || values[square].length > 1);
-			
+			const emptyCells = boxSquares.filter(
+				(square) => !values[square] || values[square].length > 1,
+			);
+
 			if (emptyCells.length === 1) {
 				const square = emptyCells[0];
 				const usedDigits = new Set<Digit>();
-				
+
 				// Find all digits already used in this box
 				for (const boxSquare of boxSquares) {
 					if (values[boxSquare] && values[boxSquare].length === 1) {
 						usedDigits.add(values[boxSquare]);
 					}
 				}
-				
+
 				// The missing digit must go in the empty cell
 				for (const digit of DIGITS) {
 					if (!usedDigits.has(digit)) {
 						results.push({
 							square,
 							digit,
-							unit: boxSquares
+							unit: boxSquares,
 						});
 						break;
 					}
@@ -531,92 +549,102 @@ function detectLastRemainingInBox(values: Values): { square: Square; digit: Digi
 			}
 		}
 	}
-	
+
 	return results;
 }
 
 /**
  * Detects cells that are the last remaining empty cell in a row
  */
-function detectLastRemainingInRow(values: Values): { square: Square; digit: Digit; unit: Unit }[] {
+function detectLastRemainingInRow(
+	values: Values,
+): { square: Square; digit: Digit; unit: Unit }[] {
 	const results: { square: Square; digit: Digit; unit: Unit }[] = [];
-	
+
 	for (const row of ROWS) {
 		const rowSquares = cross(COLS, [row]);
-		const emptyCells = rowSquares.filter(square => !values[square] || values[square].length > 1);
-		
+		const emptyCells = rowSquares.filter(
+			(square) => !values[square] || values[square].length > 1,
+		);
+
 		if (emptyCells.length === 1) {
 			const square = emptyCells[0];
 			const usedDigits = new Set<Digit>();
-			
+
 			// Find all digits already used in this row
 			for (const rowSquare of rowSquares) {
 				if (values[rowSquare] && values[rowSquare].length === 1) {
 					usedDigits.add(values[rowSquare]);
 				}
 			}
-			
+
 			// The missing digit must go in the empty cell
 			for (const digit of DIGITS) {
 				if (!usedDigits.has(digit)) {
 					results.push({
 						square,
 						digit,
-						unit: rowSquares
+						unit: rowSquares,
 					});
 					break;
 				}
 			}
 		}
 	}
-	
+
 	return results;
 }
 
 /**
  * Detects cells that are the last remaining empty cell in a column
  */
-function detectLastRemainingInColumn(values: Values): { square: Square; digit: Digit; unit: Unit }[] {
+function detectLastRemainingInColumn(
+	values: Values,
+): { square: Square; digit: Digit; unit: Unit }[] {
 	const results: { square: Square; digit: Digit; unit: Unit }[] = [];
-	
+
 	for (const col of COLS) {
 		const colSquares = cross([col], ROWS);
-		const emptyCells = colSquares.filter(square => !values[square] || values[square].length > 1);
-		
+		const emptyCells = colSquares.filter(
+			(square) => !values[square] || values[square].length > 1,
+		);
+
 		if (emptyCells.length === 1) {
 			const square = emptyCells[0];
 			const usedDigits = new Set<Digit>();
-			
+
 			// Find all digits already used in this column
 			for (const colSquare of colSquares) {
 				if (values[colSquare] && values[colSquare].length === 1) {
 					usedDigits.add(values[colSquare]);
 				}
 			}
-			
+
 			// The missing digit must go in the empty cell
 			for (const digit of DIGITS) {
 				if (!usedDigits.has(digit)) {
 					results.push({
 						square,
 						digit,
-						unit: colSquares
+						unit: colSquares,
 					});
 					break;
 				}
 			}
 		}
 	}
-	
+
 	return results;
 }
 
 /**
  * Detects naked singles - cells that have only one possible digit
  */
-function detectNakedSingles(candidates: Candidates): { square: Square; digit: Digit }[] {
+function detectNakedSingles(
+	candidates: Candidates,
+): { square: Square; digit: Digit }[] {
 	const results: { square: Square; digit: Digit }[] = [];
-	
+
 	for (const square in candidates) {
 		const cellCandidates = candidates[square];
 		if (cellCandidates && cellCandidates.size === 1) {
@@ -624,7 +652,7 @@ function detectNakedSingles(candidates: Candidates): { square: Square; digit: Di
 			results.push({ square, digit });
 		}
 	}
-	
+
 	return results;
 }
 
@@ -633,13 +661,27 @@ function detectNakedSingles(candidates: Candidates): { square: Square; digit: Di
 /**
  * Detects naked pairs - two cells in the same unit that have exactly the same two candidates
  */
-function detectNakedPairs(candidates: Candidates): { squares: [Square, Square]; digits: [Digit, Digit]; unit: Unit; unitType: string }[] {
-	const results: { squares: [Square, Square]; digits: [Digit, Digit]; unit: Unit; unitType: string }[] = [];
-	
+function detectNakedPairs(
+	candidates: Candidates,
+): {
+	squares: [Square, Square];
+	digits: [Digit, Digit];
+	unit: Unit;
+	unitType: string;
+}[] {
+	const results: {
+		squares: [Square, Square];
+		digits: [Digit, Digit];
+		unit: Unit;
+		unitType: string;
+	}[] = [];
+
 	// Check all units (rows, columns, boxes)
 	for (const unit of UNIT_LIST) {
-		const emptyCells = unit.filter(square => candidates[square] && candidates[square].size > 0);
-		
+		const emptyCells = unit.filter(
+			(square) => candidates[square] && candidates[square].size > 0,
+		);
+
 		// Check all pairs of empty cells
 		for (let i = 0; i < emptyCells.length; i++) {
 			for (let j = i + 1; j < emptyCells.length; j++) {
@@ -647,45 +689,65 @@ function detectNakedPairs(candidates: Candidates): { squares: [Square, Square]; 
 				const square2 = emptyCells[j];
 				const cands1 = candidates[square1];
 				const cands2 = candidates[square2];
-				
+
 				// Both cells must have exactly 2 candidates and they must be identical
 				if (cands1.size === 2 && cands2.size === 2) {
 					const candidates1 = Array.from(cands1).sort() as [Digit, Digit];
 					const candidates2 = Array.from(cands2).sort() as [Digit, Digit];
-					
-					if (candidates1[0] === candidates2[0] && candidates1[1] === candidates2[1]) {
+
+					if (
+						candidates1[0] === candidates2[0] &&
+						candidates1[1] === candidates2[1]
+					) {
 						let unitType = 'box';
 						if (unit[0].charAt(0) === unit[8].charAt(0)) {
 							unitType = 'row';
 						} else if (unit[0].charAt(1) === unit[8].charAt(1)) {
 							unitType = 'column';
 						}
-						
+
 						results.push({
 							squares: [square1, square2],
 							digits: candidates1,
 							unit,
-							unitType
+							unitType,
 						});
 					}
 				}
 			}
 		}
 	}
-	
+
 	return results;
 }
 
 /**
  * Detects naked triples - three cells in the same unit that collectively have only three possible digits
  */
-function detectNakedTriples(candidates: Candidates): { squares: [Square, Square, Square]; digits: Digit[]; unit: Unit; unitType: string }[] {
-	const results: { squares: [Square, Square, Square]; digits: Digit[]; unit: Unit; unitType: string }[] = [];
-	
+function detectNakedTriples(
+	candidates: Candidates,
+): {
+	squares: [Square, Square, Square];
+	digits: Digit[];
+	unit: Unit;
+	unitType: string;
+}[] {
+	const results: {
+		squares: [Square, Square, Square];
+		digits: Digit[];
+		unit: Unit;
+		unitType: string;
+	}[] = [];
+
 	// Check all units (rows, columns, boxes)
 	for (const unit of UNIT_LIST) {
-		const cellsWithFewCandidates = unit.filter(square => candidates[square] && candidates[square].size >= 2 && candidates[square].size <= 3);
-		
+		const cellsWithFewCandidates = unit.filter(
+			(square) =>
+				candidates[square] &&
+				candidates[square].size >= 2 &&
+				candidates[square].size <= 3,
+		);
+
 		// Check all combinations of 3 cells
 		for (let i = 0; i < cellsWithFewCandidates.length; i++) {
 			for (let j = i + 1; j < cellsWithFewCandidates.length; j++) {
@@ -693,13 +755,13 @@ function detectNakedTriples(candidates: Candidates): { squares: [Square, Square,
 					const square1 = cellsWithFewCandidates[i];
 					const square2 = cellsWithFewCandidates[j];
 					const square3 = cellsWithFewCandidates[k];
-					
+
 					const combinedCandidates = new Set([
 						...Array.from(candidates[square1]),
 						...Array.from(candidates[square2]),
-						...Array.from(candidates[square3])
+						...Array.from(candidates[square3]),
 					]);
-					
+
 					// Check if the combined candidates contain exactly 3 digits
 					if (combinedCandidates.size === 3) {
 						let unitType = 'box';
@@ -708,32 +770,49 @@ function detectNakedTriples(candidates: Candidates): { squares: [Square, Square,
 						} else if (unit[0].charAt(1) === unit[8].charAt(1)) {
 							unitType = 'column';
 						}
-						
+
 						results.push({
 							squares: [square1, square2, square3],
 							digits: Array.from(combinedCandidates).sort() as Digit[],
 							unit,
-							unitType
+							unitType,
 						});
 					}
 				}
 			}
 		}
 	}
-	
+
 	return results;
 }
 
 /**
  * Detects naked quads - four cells in the same unit that collectively have only four possible digits
  */
-function detectNakedQuads(candidates: Candidates): { squares: [Square, Square, Square, Square]; digits: Digit[]; unit: Unit; unitType: string }[] {
-	const results: { squares: [Square, Square, Square, Square]; digits: Digit[]; unit: Unit; unitType: string }[] = [];
-	
+function detectNakedQuads(
+	candidates: Candidates,
+): {
+	squares: [Square, Square, Square, Square];
+	digits: Digit[];
+	unit: Unit;
+	unitType: string;
+}[] {
+	const results: {
+		squares: [Square, Square, Square, Square];
+		digits: Digit[];
+		unit: Unit;
+		unitType: string;
+	}[] = [];
+
 	// Check all units (rows, columns, boxes)
 	for (const unit of UNIT_LIST) {
-		const cellsWithFewCandidates = unit.filter(square => candidates[square] && candidates[square].size >= 2 && candidates[square].size <= 4);
-		
+		const cellsWithFewCandidates = unit.filter(
+			(square) =>
+				candidates[square] &&
+				candidates[square].size >= 2 &&
+				candidates[square].size <= 4,
+		);
+
 		// Check all combinations of 4 cells
 		for (let i = 0; i < cellsWithFewCandidates.length; i++) {
 			for (let j = i + 1; j < cellsWithFewCandidates.length; j++) {
@@ -743,14 +822,14 @@ function detectNakedQuads(candidates: Candidates): { squares: [Square, Square, S
 						const square2 = cellsWithFewCandidates[j];
 						const square3 = cellsWithFewCandidates[k];
 						const square4 = cellsWithFewCandidates[l];
-						
+
 						const combinedCandidates = new Set([
 							...Array.from(candidates[square1]),
 							...Array.from(candidates[square2]),
 							...Array.from(candidates[square3]),
-							...Array.from(candidates[square4])
+							...Array.from(candidates[square4]),
 						]);
-						
+
 						// Check if the combined candidates contain exactly 4 digits
 						if (combinedCandidates.size === 4) {
 							let unitType = 'box';
@@ -759,12 +838,12 @@ function detectNakedQuads(candidates: Candidates): { squares: [Square, Square, S
 							} else if (unit[0].charAt(1) === unit[8].charAt(1)) {
 								unitType = 'column';
 							}
-							
+
 							results.push({
 								squares: [square1, square2, square3, square4],
 								digits: Array.from(combinedCandidates).sort() as Digit[],
 								unit,
-								unitType
+								unitType,
 							});
 						}
 					}
@@ -772,20 +851,32 @@ function detectNakedQuads(candidates: Candidates): { squares: [Square, Square, S
 			}
 		}
 	}
-	
+
 	return results;
 }
 
 /**
  * Detects hidden pairs - two digits that can only appear in two cells within a unit
  */
-function detectHiddenPairs(candidates: Candidates): { squares: [Square, Square]; digits: [Digit, Digit]; unit: Unit; unitType: string }[] {
-	const results: { squares: [Square, Square]; digits: [Digit, Digit]; unit: Unit; unitType: string }[] = [];
-	
+function detectHiddenPairs(
+	candidates: Candidates,
+): {
+	squares: [Square, Square];
+	digits: [Digit, Digit];
+	unit: Unit;
+	unitType: string;
+}[] {
+	const results: {
+		squares: [Square, Square];
+		digits: [Digit, Digit];
+		unit: Unit;
+		unitType: string;
+	}[] = [];
+
 	// Check all units (rows, columns, boxes)
 	for (const unit of UNIT_LIST) {
 		const digitPositions: Record<Digit, Square[]> = {};
-		
+
 		// Map each digit to the squares where it can appear in this unit
 		for (const square of unit) {
 			if (candidates[square]) {
@@ -797,7 +888,7 @@ function detectHiddenPairs(candidates: Candidates): { squares: [Square, Square];
 				}
 			}
 		}
-		
+
 		// Find pairs of digits that each appear in exactly the same two squares
 		const digits = Object.keys(digitPositions);
 		for (let i = 0; i < digits.length; i++) {
@@ -806,41 +897,58 @@ function detectHiddenPairs(candidates: Candidates): { squares: [Square, Square];
 				const digit2 = digits[j];
 				const positions1 = digitPositions[digit1];
 				const positions2 = digitPositions[digit2];
-				
-				if (positions1 && positions2 && positions1.length === 2 && positions2.length === 2 &&
-					positions1[0] === positions2[0] && positions1[1] === positions2[1]) {
-					
+
+				if (
+					positions1 &&
+					positions2 &&
+					positions1.length === 2 &&
+					positions2.length === 2 &&
+					positions1[0] === positions2[0] &&
+					positions1[1] === positions2[1]
+				) {
 					let unitType = 'box';
 					if (unit[0].charAt(0) === unit[8].charAt(0)) {
 						unitType = 'row';
 					} else if (unit[0].charAt(1) === unit[8].charAt(1)) {
 						unitType = 'column';
 					}
-					
+
 					results.push({
 						squares: [positions1[0], positions1[1]],
 						digits: [digit1, digit2],
 						unit,
-						unitType
+						unitType,
 					});
 				}
 			}
 		}
 	}
-	
+
 	return results;
 }
 
 /**
  * Detects hidden triples - three digits that can only appear in three cells within a unit
  */
-function detectHiddenTriples(candidates: Candidates): { squares: [Square, Square, Square]; digits: [Digit, Digit, Digit]; unit: Unit; unitType: string }[] {
-	const results: { squares: [Square, Square, Square]; digits: [Digit, Digit, Digit]; unit: Unit; unitType: string }[] = [];
-	
+function detectHiddenTriples(
+	candidates: Candidates,
+): {
+	squares: [Square, Square, Square];
+	digits: [Digit, Digit, Digit];
+	unit: Unit;
+	unitType: string;
+}[] {
+	const results: {
+		squares: [Square, Square, Square];
+		digits: [Digit, Digit, Digit];
+		unit: Unit;
+		unitType: string;
+	}[] = [];
+
 	// Check all units (rows, columns, boxes)
 	for (const unit of UNIT_LIST) {
 		const digitPositions: Record<Digit, Square[]> = {};
-		
+
 		// Map each digit to the squares where it can appear in this unit
 		for (const square of unit) {
 			if (candidates[square]) {
@@ -852,7 +960,7 @@ function detectHiddenTriples(candidates: Candidates): { squares: [Square, Square
 				}
 			}
 		}
-		
+
 		// Find triples of digits that collectively appear in exactly the same three squares
 		const digits = Object.keys(digitPositions);
 		for (let i = 0; i < digits.length; i++) {
@@ -861,52 +969,68 @@ function detectHiddenTriples(candidates: Candidates): { squares: [Square, Square
 					const digit1 = digits[i];
 					const digit2 = digits[j];
 					const digit3 = digits[k];
-					
+
 					const allPositions = new Set([
 						...(digitPositions[digit1] || []),
 						...(digitPositions[digit2] || []),
-						...(digitPositions[digit3] || [])
+						...(digitPositions[digit3] || []),
 					]);
-					
+
 					// Check if these three digits appear in exactly three squares
-					if (allPositions.size === 3 &&
-						digitPositions[digit1] && digitPositions[digit1].length <= 3 &&
-						digitPositions[digit2] && digitPositions[digit2].length <= 3 &&
-						digitPositions[digit3] && digitPositions[digit3].length <= 3) {
-						
+					if (
+						allPositions.size === 3 &&
+						digitPositions[digit1] &&
+						digitPositions[digit1].length <= 3 &&
+						digitPositions[digit2] &&
+						digitPositions[digit2].length <= 3 &&
+						digitPositions[digit3] &&
+						digitPositions[digit3].length <= 3
+					) {
 						let unitType = 'box';
 						if (unit[0].charAt(0) === unit[8].charAt(0)) {
 							unitType = 'row';
 						} else if (unit[0].charAt(1) === unit[8].charAt(1)) {
 							unitType = 'column';
 						}
-						
+
 						const squareArray = Array.from(allPositions);
 						results.push({
 							squares: [squareArray[0], squareArray[1], squareArray[2]],
 							digits: [digit1, digit2, digit3],
 							unit,
-							unitType
+							unitType,
 						});
 					}
 				}
 			}
 		}
 	}
-	
+
 	return results;
 }
 
 /**
  * Detects hidden quads - four digits that can only appear in four cells within a unit
  */
-function detectHiddenQuads(candidates: Candidates): { squares: [Square, Square, Square, Square]; digits: [Digit, Digit, Digit, Digit]; unit: Unit; unitType: string }[] {
-	const results: { squares: [Square, Square, Square, Square]; digits: [Digit, Digit, Digit, Digit]; unit: Unit; unitType: string }[] = [];
-	
+function detectHiddenQuads(
+	candidates: Candidates,
+): {
+	squares: [Square, Square, Square, Square];
+	digits: [Digit, Digit, Digit, Digit];
+	unit: Unit;
+	unitType: string;
+}[] {
+	const results: {
+		squares: [Square, Square, Square, Square];
+		digits: [Digit, Digit, Digit, Digit];
+		unit: Unit;
+		unitType: string;
+	}[] = [];
+
 	// Check all units (rows, columns, boxes)
 	for (const unit of UNIT_LIST) {
 		const digitPositions: Record<Digit, Square[]> = {};
-		
+
 		// Map each digit to the squares where it can appear in this unit
 		for (const square of unit) {
 			if (candidates[square]) {
@@ -918,7 +1042,7 @@ function detectHiddenQuads(candidates: Candidates): { squares: [Square, Square, 
 				}
 			}
 		}
-		
+
 		// Find quads of digits that collectively appear in exactly the same four squares
 		const digits = Object.keys(digitPositions);
 		for (let i = 0; i < digits.length; i++) {
@@ -929,34 +1053,44 @@ function detectHiddenQuads(candidates: Candidates): { squares: [Square, Square, 
 						const digit2 = digits[j];
 						const digit3 = digits[k];
 						const digit4 = digits[l];
-						
+
 						const allPositions = new Set([
 							...(digitPositions[digit1] || []),
 							...(digitPositions[digit2] || []),
 							...(digitPositions[digit3] || []),
-							...(digitPositions[digit4] || [])
+							...(digitPositions[digit4] || []),
 						]);
-						
+
 						// Check if these four digits appear in exactly four squares
-						if (allPositions.size === 4 &&
-							digitPositions[digit1] && digitPositions[digit1].length <= 4 &&
-							digitPositions[digit2] && digitPositions[digit2].length <= 4 &&
-							digitPositions[digit3] && digitPositions[digit3].length <= 4 &&
-							digitPositions[digit4] && digitPositions[digit4].length <= 4) {
-							
+						if (
+							allPositions.size === 4 &&
+							digitPositions[digit1] &&
+							digitPositions[digit1].length <= 4 &&
+							digitPositions[digit2] &&
+							digitPositions[digit2].length <= 4 &&
+							digitPositions[digit3] &&
+							digitPositions[digit3].length <= 4 &&
+							digitPositions[digit4] &&
+							digitPositions[digit4].length <= 4
+						) {
 							let unitType = 'box';
 							if (unit[0].charAt(0) === unit[8].charAt(0)) {
 								unitType = 'row';
 							} else if (unit[0].charAt(1) === unit[8].charAt(1)) {
 								unitType = 'column';
 							}
-							
+
 							const squareArray = Array.from(allPositions);
 							results.push({
-								squares: [squareArray[0], squareArray[1], squareArray[2], squareArray[3]],
+								squares: [
+									squareArray[0],
+									squareArray[1],
+									squareArray[2],
+									squareArray[3],
+								],
 								digits: [digit1, digit2, digit3, digit4],
 								unit,
-								unitType
+								unitType,
 							});
 						}
 					}
@@ -964,7 +1098,7 @@ function detectHiddenQuads(candidates: Candidates): { squares: [Square, Square, 
 			}
 		}
 	}
-	
+
 	return results;
 }
 
@@ -973,37 +1107,54 @@ function detectHiddenQuads(candidates: Candidates): { squares: [Square, Square, 
 /**
  * Detects pointing pairs/triples - when a digit appears in only one line within a box
  */
-function detectPointingPairs(candidates: Candidates): { digit: Digit; squares: Square[]; box: Unit; line: Unit; lineType: 'row' | 'column'; eliminationCells: Square[] }[] {
-	const results: { digit: Digit; squares: Square[]; box: Unit; line: Unit; lineType: 'row' | 'column'; eliminationCells: Square[] }[] = [];
-	
+function detectPointingPairs(
+	candidates: Candidates,
+): {
+	digit: Digit;
+	squares: Square[];
+	box: Unit;
+	line: Unit;
+	lineType: 'row' | 'column';
+	eliminationCells: Square[];
+}[] {
+	const results: {
+		digit: Digit;
+		squares: Square[];
+		box: Unit;
+		line: Unit;
+		lineType: 'row' | 'column';
+		eliminationCells: Square[];
+	}[] = [];
+
 	// Check each box
 	const groupRows = ['ABC', 'DEF', 'GHI'];
 	const groupCols = ['123', '456', '789'];
-	
+
 	for (let r = 0; r < groupRows.length; r++) {
 		for (let c = 0; c < groupCols.length; c++) {
 			const boxSquares = cross(chars(groupRows[r]), chars(groupCols[c]));
-			
+
 			// For each digit, check if it appears only in one row or column within this box
 			for (const digit of DIGITS) {
-				const digitSquares = boxSquares.filter(square => 
-					candidates[square] && candidates[square].has(digit)
+				const digitSquares = boxSquares.filter(
+					(square) => candidates[square] && candidates[square].has(digit),
 				);
-				
+
 				if (digitSquares.length >= 2 && digitSquares.length <= 3) {
 					// Check if all squares are in the same row
-					const rows = new Set(digitSquares.map(square => square[0]));
+					const rows = new Set(digitSquares.map((square) => square[0]));
 					if (rows.size === 1) {
 						const row = Array.from(rows)[0];
 						const rowSquares = cross([row], COLS);
-						
+
 						// Find eliminations - other squares in the same row but outside this box
-						const eliminationCells = rowSquares.filter(square => 
-							!boxSquares.includes(square) && 
-							candidates[square] && 
-							candidates[square].has(digit)
+						const eliminationCells = rowSquares.filter(
+							(square) =>
+								!boxSquares.includes(square) &&
+								candidates[square] &&
+								candidates[square].has(digit),
 						);
-						
+
 						if (eliminationCells.length > 0) {
 							results.push({
 								digit,
@@ -1011,24 +1162,25 @@ function detectPointingPairs(candidates: Candidates): { digit: Digit; squares: S
 								box: boxSquares,
 								line: rowSquares,
 								lineType: 'row',
-								eliminationCells
+								eliminationCells,
 							});
 						}
 					}
-					
+
 					// Check if all squares are in the same column
-					const cols = new Set(digitSquares.map(square => square[1]));
+					const cols = new Set(digitSquares.map((square) => square[1]));
 					if (cols.size === 1) {
 						const col = Array.from(cols)[0];
 						const colSquares = cross(ROWS, [col]);
-						
+
 						// Find eliminations - other squares in the same column but outside this box
-						const eliminationCells = colSquares.filter(square => 
-							!boxSquares.includes(square) && 
-							candidates[square] && 
-							candidates[square].has(digit)
+						const eliminationCells = colSquares.filter(
+							(square) =>
+								!boxSquares.includes(square) &&
+								candidates[square] &&
+								candidates[square].has(digit),
 						);
-						
+
 						if (eliminationCells.length > 0) {
 							results.push({
 								digit,
@@ -1036,7 +1188,7 @@ function detectPointingPairs(candidates: Candidates): { digit: Digit; squares: S
 								box: boxSquares,
 								line: colSquares,
 								lineType: 'column',
-								eliminationCells
+								eliminationCells,
 							});
 						}
 					}
@@ -1044,35 +1196,59 @@ function detectPointingPairs(candidates: Candidates): { digit: Digit; squares: S
 			}
 		}
 	}
-	
+
 	return results;
 }
 
 /**
  * Detects box/line reduction - when a digit appears only in one box within a line
  */
-function detectBoxLineReduction(candidates: Candidates): { digit: Digit; squares: Square[]; line: Unit; lineType: 'row' | 'column'; box: Unit; eliminationCells: Square[] }[] {
-	const results: { digit: Digit; squares: Square[]; line: Unit; lineType: 'row' | 'column'; box: Unit; eliminationCells: Square[] }[] = [];
-	
+function detectBoxLineReduction(
+	candidates: Candidates,
+): {
+	digit: Digit;
+	squares: Square[];
+	line: Unit;
+	lineType: 'row' | 'column';
+	box: Unit;
+	eliminationCells: Square[];
+}[] {
+	const results: {
+		digit: Digit;
+		squares: Square[];
+		line: Unit;
+		lineType: 'row' | 'column';
+		box: Unit;
+		eliminationCells: Square[];
+	}[] = [];
+
 	// Check each row
 	for (const row of ROWS) {
 		const rowSquares = cross([row], COLS);
-		
+
 		for (const digit of DIGITS) {
-			const digitSquares = rowSquares.filter(square => 
-				candidates[square] && candidates[square].has(digit)
+			const digitSquares = rowSquares.filter(
+				(square) => candidates[square] && candidates[square].has(digit),
 			);
-			
+
 			if (digitSquares.length >= 2 && digitSquares.length <= 3) {
 				// Check if all squares are in the same box
-				const boxes = new Set(digitSquares.map(square => {
-					const col = square[1];
-					const rowLetter = square[0];
-					const boxCol = col >= '1' && col <= '3' ? 0 : col >= '4' && col <= '6' ? 1 : 2;
-					const boxRow = rowLetter >= 'A' && rowLetter <= 'C' ? 0 : rowLetter >= 'D' && rowLetter <= 'F' ? 1 : 2;
-					return boxRow * 3 + boxCol;
-				}));
-				
+				const boxes = new Set(
+					digitSquares.map((square) => {
+						const col = square[1];
+						const rowLetter = square[0];
+						const boxCol =
+							col >= '1' && col <= '3' ? 0 : col >= '4' && col <= '6' ? 1 : 2;
+						const boxRow =
+							rowLetter >= 'A' && rowLetter <= 'C'
+								? 0
+								: rowLetter >= 'D' && rowLetter <= 'F'
+									? 1
+									: 2;
+						return boxRow * 3 + boxCol;
+					}),
+				);
+
 				if (boxes.size === 1) {
 					// All squares are in the same box
 					const boxIndex = Array.from(boxes)[0];
@@ -1080,15 +1256,19 @@ function detectBoxLineReduction(candidates: Candidates): { digit: Digit; squares
 					const boxCol = boxIndex % 3;
 					const groupRows = ['ABC', 'DEF', 'GHI'];
 					const groupCols = ['123', '456', '789'];
-					const boxSquares = cross(chars(groupRows[boxRow]), chars(groupCols[boxCol]));
-					
-					// Find eliminations - other squares in the same box but outside this row
-					const eliminationCells = boxSquares.filter(square => 
-						!rowSquares.includes(square) && 
-						candidates[square] && 
-						candidates[square].has(digit)
+					const boxSquares = cross(
+						chars(groupRows[boxRow]),
+						chars(groupCols[boxCol]),
 					);
-					
+
+					// Find eliminations - other squares in the same box but outside this row
+					const eliminationCells = boxSquares.filter(
+						(square) =>
+							!rowSquares.includes(square) &&
+							candidates[square] &&
+							candidates[square].has(digit),
+					);
+
 					if (eliminationCells.length > 0) {
 						results.push({
 							digit,
@@ -1096,32 +1276,36 @@ function detectBoxLineReduction(candidates: Candidates): { digit: Digit; squares
 							line: rowSquares,
 							lineType: 'row',
 							box: boxSquares,
-							eliminationCells
+							eliminationCells,
 						});
 					}
 				}
 			}
 		}
 	}
-	
+
 	// Check each column
 	for (const col of COLS) {
 		const colSquares = cross(ROWS, [col]);
-		
+
 		for (const digit of DIGITS) {
-			const digitSquares = colSquares.filter(square => 
-				candidates[square] && candidates[square].has(digit)
+			const digitSquares = colSquares.filter(
+				(square) => candidates[square] && candidates[square].has(digit),
 			);
-			
+
 			if (digitSquares.length >= 2 && digitSquares.length <= 3) {
 				// Check if all squares are in the same box
-				const boxes = new Set(digitSquares.map(square => {
-					const row = square[0];
-					const boxCol = col >= '1' && col <= '3' ? 0 : col >= '4' && col <= '6' ? 1 : 2;
-					const boxRow = row >= 'A' && row <= 'C' ? 0 : row >= 'D' && row <= 'F' ? 1 : 2;
-					return boxRow * 3 + boxCol;
-				}));
-				
+				const boxes = new Set(
+					digitSquares.map((square) => {
+						const row = square[0];
+						const boxCol =
+							col >= '1' && col <= '3' ? 0 : col >= '4' && col <= '6' ? 1 : 2;
+						const boxRow =
+							row >= 'A' && row <= 'C' ? 0 : row >= 'D' && row <= 'F' ? 1 : 2;
+						return boxRow * 3 + boxCol;
+					}),
+				);
+
 				if (boxes.size === 1) {
 					// All squares are in the same box
 					const boxIndex = Array.from(boxes)[0];
@@ -1129,15 +1313,19 @@ function detectBoxLineReduction(candidates: Candidates): { digit: Digit; squares
 					const boxCol = boxIndex % 3;
 					const groupRows = ['ABC', 'DEF', 'GHI'];
 					const groupCols = ['123', '456', '789'];
-					const boxSquares = cross(chars(groupRows[boxRow]), chars(groupCols[boxCol]));
-					
-					// Find eliminations - other squares in the same box but outside this column
-					const eliminationCells = boxSquares.filter(square => 
-						!colSquares.includes(square) && 
-						candidates[square] && 
-						candidates[square].has(digit)
+					const boxSquares = cross(
+						chars(groupRows[boxRow]),
+						chars(groupCols[boxCol]),
 					);
-					
+
+					// Find eliminations - other squares in the same box but outside this column
+					const eliminationCells = boxSquares.filter(
+						(square) =>
+							!colSquares.includes(square) &&
+							candidates[square] &&
+							candidates[square].has(digit),
+					);
+
 					if (eliminationCells.length > 0) {
 						results.push({
 							digit,
@@ -1145,14 +1333,14 @@ function detectBoxLineReduction(candidates: Candidates): { digit: Digit; squares
 							line: colSquares,
 							lineType: 'column',
 							box: boxSquares,
-							eliminationCells
+							eliminationCells,
 						});
 					}
 				}
 			}
 		}
 	}
-	
+
 	return results;
 }
 
@@ -1161,28 +1349,28 @@ function detectBoxLineReduction(candidates: Candidates): { digit: Digit; squares
 // Centralized difficulty configuration for all hint techniques (1-10 scale)
 const TECHNIQUE_DIFFICULTIES: Record<string, number> = {
 	// Stage 1: Error Detection (1-2)
-	'incorrect_value': 1,
-	'missing_candidate': 2,
-	
+	incorrect_value: 1,
+	missing_candidate: 2,
+
 	// Stage 2: Trivial Hints (2-3)
-	'last_remaining_in_box': 2,
-	'last_remaining_in_row': 2,
-	'last_remaining_in_column': 2,
-	'naked_single': 3,
-	
+	last_remaining_in_box: 2,
+	last_remaining_in_row: 2,
+	last_remaining_in_column: 2,
+	naked_single: 3,
+
 	// Stage 3: Basic Elimination (4-5)
-	'pointing_pairs': 4,
-	'box_line_reduction': 4,
-	'naked_pairs': 5,
-	
+	pointing_pairs: 4,
+	box_line_reduction: 4,
+	naked_pairs: 5,
+
 	// Stage 4: Intermediate Techniques (6-7)
-	'naked_triples': 6,
-	'hidden_pairs': 6,
-	'naked_quads': 7,
-	'hidden_triples': 7,
-	
+	naked_triples: 6,
+	hidden_pairs: 6,
+	naked_quads: 7,
+	hidden_triples: 7,
+
 	// Stage 5: Advanced Techniques (8-10)
-	'hidden_quads': 8
+	hidden_quads: 8,
 };
 
 // Pre-sorted array of techniques ordered by difficulty (easiest first)
@@ -1200,7 +1388,9 @@ function getTechniqueDifficulty(technique: string): number {
 /**
  * Convert numeric difficulty to display category
  */
-function difficultyToCategory(difficulty: number): 'beginner' | 'easy' | 'medium' | 'hard' {
+function difficultyToCategory(
+	difficulty: number,
+): 'beginner' | 'easy' | 'medium' | 'hard' {
 	if (difficulty <= 2) return 'beginner';
 	if (difficulty <= 4) return 'easy';
 	if (difficulty <= 7) return 'medium';
@@ -1229,7 +1419,11 @@ interface MissingCandidateHint extends HintBase {
 
 interface SingleCellHint extends HintBase {
 	type: 'single_cell';
-	technique: 'last_remaining_in_box' | 'last_remaining_in_row' | 'last_remaining_in_column' | 'naked_single';
+	technique:
+		| 'last_remaining_in_box'
+		| 'last_remaining_in_row'
+		| 'last_remaining_in_column'
+		| 'naked_single';
 	square: Square;
 	digit: Digit;
 	unit?: Unit;
@@ -1269,21 +1463,27 @@ interface IntersectionRemovalHint extends HintBase {
 	eliminationCells: Square[];
 }
 
-type ComprehensiveHint = ErrorHint | MissingCandidateHint | SingleCellHint | NakedSetHint | HiddenSetHint | IntersectionRemovalHint;
+type ComprehensiveHint =
+	| ErrorHint
+	| MissingCandidateHint
+	| SingleCellHint
+	| NakedSetHint
+	| HiddenSetHint
+	| IntersectionRemovalHint;
 
 /**
  * Helper function to convert values to candidates format for hint detection
  */
 function valuesToCandidates(values: Values): Candidates {
 	const candidates: Candidates = {};
-	
+
 	// Initialize all empty cells with all possible digits
 	for (const square of SQUARES) {
 		if (!values[square] || values[square].length > 1) {
 			candidates[square] = new Set(DIGITS.split(''));
 		}
 	}
-	
+
 	// Eliminate candidates based on placed values
 	for (const square in values) {
 		if (values[square] && values[square].length === 1) {
@@ -1296,17 +1496,22 @@ function valuesToCandidates(values: Values): Candidates {
 			}
 		}
 	}
-	
+
 	return candidates;
 }
 
 /**
  * Find cells that would have candidates eliminated by a naked set
  */
-function findNakedSetEliminations(squares: Square[], digits: Digit[], unit: Unit, candidates: Candidates): { cells: Square[], digits: Digit[] } {
+function findNakedSetEliminations(
+	squares: Square[],
+	digits: Digit[],
+	unit: Unit,
+	candidates: Candidates,
+): { cells: Square[]; digits: Digit[] } {
 	const eliminationCells: Square[] = [];
 	const eliminationDigits: Digit[] = [];
-	
+
 	for (const square of unit) {
 		if (!squares.includes(square) && candidates[square]) {
 			for (const digit of digits) {
@@ -1321,17 +1526,21 @@ function findNakedSetEliminations(squares: Square[], digits: Digit[], unit: Unit
 			}
 		}
 	}
-	
+
 	return { cells: eliminationCells, digits: eliminationDigits };
 }
 
 /**
  * Find cells that would have candidates eliminated by a hidden set
  */
-function findHiddenSetEliminations(squares: Square[], digits: Digit[], candidates: Candidates): { cells: Square[], digits: Digit[] } {
+function findHiddenSetEliminations(
+	squares: Square[],
+	digits: Digit[],
+	candidates: Candidates,
+): { cells: Square[]; digits: Digit[] } {
 	const eliminationCells: Square[] = [];
 	const eliminationDigits: Digit[] = [];
-	
+
 	for (const square of squares) {
 		if (candidates[square]) {
 			for (const candidate of Array.from(candidates[square])) {
@@ -1346,27 +1555,31 @@ function findHiddenSetEliminations(squares: Square[], digits: Digit[], candidate
 			}
 		}
 	}
-	
+
 	return { cells: eliminationCells, digits: eliminationDigits };
 }
 
 /**
  * Comprehensive hint detection function that checks techniques in order of difficulty
  * Uses early exit optimization - returns first (easiest) hint found
- * 
+ *
  * Performance optimization: Instead of finding ALL hints and sorting them,
  * this function iterates through techniques in pre-sorted difficulty order
  * and returns immediately when the first hint is found. This is much faster
  * for complex puzzles that might have many available hints.
  */
-function getComprehensiveHint(puzzle: string | Grid, values: Values, providedCandidates?: Candidates): ComprehensiveHint | null {
+function getComprehensiveHint(
+	puzzle: string | Grid,
+	values: Values,
+	providedCandidates?: Candidates,
+): ComprehensiveHint | null {
 	// Use provided candidates or convert values to candidates for advanced techniques
 	const candidates = providedCandidates || valuesToCandidates(values);
-	
+
 	// Iterate through techniques in order of difficulty (easiest first)
 	for (const technique of SORTED_TECHNIQUES) {
 		let hint: ComprehensiveHint | null = null;
-		
+
 		// Use switch statement to call appropriate detection function
 		switch (technique) {
 			case 'incorrect_value': {
@@ -1379,14 +1592,18 @@ function getComprehensiveHint(puzzle: string | Grid, values: Values, providedCan
 						difficulty: getTechniqueDifficulty('incorrect_value'),
 						square: error.square,
 						actualValue: error.actualValue,
-						correctValue: error.correctValue
+						correctValue: error.correctValue,
 					};
 				}
 				break;
 			}
-			
+
 			case 'missing_candidate': {
-				const missingCandidates = detectMissingCandidates(puzzle, values, candidates);
+				const missingCandidates = detectMissingCandidates(
+					puzzle,
+					values,
+					candidates,
+				);
 				if (missingCandidates.length > 0) {
 					const missing = missingCandidates[0];
 					hint = {
@@ -1394,12 +1611,12 @@ function getComprehensiveHint(puzzle: string | Grid, values: Values, providedCan
 						technique: 'missing_candidate',
 						difficulty: getTechniqueDifficulty('missing_candidate'),
 						square: missing.square,
-						missingDigit: missing.missingDigit
+						missingDigit: missing.missingDigit,
 					};
 				}
 				break;
 			}
-			
+
 			case 'last_remaining_in_box': {
 				const lastInBox = detectLastRemainingInBox(values);
 				if (lastInBox.length > 0) {
@@ -1410,12 +1627,12 @@ function getComprehensiveHint(puzzle: string | Grid, values: Values, providedCan
 						difficulty: getTechniqueDifficulty('last_remaining_in_box'),
 						square: hintData.square,
 						digit: hintData.digit,
-						unit: hintData.unit
+						unit: hintData.unit,
 					};
 				}
 				break;
 			}
-			
+
 			case 'last_remaining_in_row': {
 				const lastInRow = detectLastRemainingInRow(values);
 				if (lastInRow.length > 0) {
@@ -1426,12 +1643,12 @@ function getComprehensiveHint(puzzle: string | Grid, values: Values, providedCan
 						difficulty: getTechniqueDifficulty('last_remaining_in_row'),
 						square: hintData.square,
 						digit: hintData.digit,
-						unit: hintData.unit
+						unit: hintData.unit,
 					};
 				}
 				break;
 			}
-			
+
 			case 'last_remaining_in_column': {
 				const lastInColumn = detectLastRemainingInColumn(values);
 				if (lastInColumn.length > 0) {
@@ -1442,12 +1659,12 @@ function getComprehensiveHint(puzzle: string | Grid, values: Values, providedCan
 						difficulty: getTechniqueDifficulty('last_remaining_in_column'),
 						square: hintData.square,
 						digit: hintData.digit,
-						unit: hintData.unit
+						unit: hintData.unit,
 					};
 				}
 				break;
 			}
-			
+
 			case 'naked_single': {
 				const nakedSingles = detectNakedSingles(candidates);
 				if (nakedSingles.length > 0) {
@@ -1457,12 +1674,12 @@ function getComprehensiveHint(puzzle: string | Grid, values: Values, providedCan
 						technique: 'naked_single',
 						difficulty: getTechniqueDifficulty('naked_single'),
 						square: hintData.square,
-						digit: hintData.digit
+						digit: hintData.digit,
 					};
 				}
 				break;
 			}
-			
+
 			case 'pointing_pairs': {
 				const pointingPairs = detectPointingPairs(candidates);
 				if (pointingPairs.length > 0) {
@@ -1480,7 +1697,7 @@ function getComprehensiveHint(puzzle: string | Grid, values: Values, providedCan
 								primaryUnitType: 'box',
 								secondaryUnit: hintData.line,
 								secondaryUnitType: hintData.lineType,
-								eliminationCells: hintData.eliminationCells
+								eliminationCells: hintData.eliminationCells,
 							};
 							break; // Found a useful hint, stop checking other pairs
 						}
@@ -1488,7 +1705,7 @@ function getComprehensiveHint(puzzle: string | Grid, values: Values, providedCan
 				}
 				break;
 			}
-			
+
 			case 'box_line_reduction': {
 				const boxLineReductions = detectBoxLineReduction(candidates);
 				if (boxLineReductions.length > 0) {
@@ -1506,7 +1723,7 @@ function getComprehensiveHint(puzzle: string | Grid, values: Values, providedCan
 								primaryUnitType: hintData.lineType,
 								secondaryUnit: hintData.box,
 								secondaryUnitType: 'box',
-								eliminationCells: hintData.eliminationCells
+								eliminationCells: hintData.eliminationCells,
 							};
 							break; // Found a useful hint, stop checking other reductions
 						}
@@ -1514,14 +1731,19 @@ function getComprehensiveHint(puzzle: string | Grid, values: Values, providedCan
 				}
 				break;
 			}
-			
+
 			case 'naked_pairs': {
 				const nakedPairs = detectNakedPairs(candidates);
 				if (nakedPairs.length > 0) {
 					// Check each naked pair until we find one with eliminations
 					for (let i = 0; i < nakedPairs.length; i++) {
 						const hintData = nakedPairs[i];
-						const eliminations = findNakedSetEliminations(hintData.squares, hintData.digits, hintData.unit, candidates);
+						const eliminations = findNakedSetEliminations(
+							hintData.squares,
+							hintData.digits,
+							hintData.unit,
+							candidates,
+						);
 						if (eliminations.cells.length > 0) {
 							hint = {
 								type: 'naked_set',
@@ -1532,7 +1754,7 @@ function getComprehensiveHint(puzzle: string | Grid, values: Values, providedCan
 								unit: hintData.unit,
 								unitType: hintData.unitType,
 								eliminationCells: eliminations.cells,
-								eliminationDigits: eliminations.digits
+								eliminationDigits: eliminations.digits,
 							};
 							break; // Found a useful hint, stop checking other pairs
 						}
@@ -1540,14 +1762,19 @@ function getComprehensiveHint(puzzle: string | Grid, values: Values, providedCan
 				}
 				break;
 			}
-			
+
 			case 'naked_triples': {
 				const nakedTriples = detectNakedTriples(candidates);
 				if (nakedTriples.length > 0) {
 					// Check each naked triple until we find one with eliminations
 					for (let i = 0; i < nakedTriples.length; i++) {
 						const hintData = nakedTriples[i];
-						const eliminations = findNakedSetEliminations(hintData.squares, hintData.digits, hintData.unit, candidates);
+						const eliminations = findNakedSetEliminations(
+							hintData.squares,
+							hintData.digits,
+							hintData.unit,
+							candidates,
+						);
 						if (eliminations.cells.length > 0) {
 							hint = {
 								type: 'naked_set',
@@ -1558,7 +1785,7 @@ function getComprehensiveHint(puzzle: string | Grid, values: Values, providedCan
 								unit: hintData.unit,
 								unitType: hintData.unitType,
 								eliminationCells: eliminations.cells,
-								eliminationDigits: eliminations.digits
+								eliminationDigits: eliminations.digits,
 							};
 							break; // Found a useful hint, stop checking other triples
 						}
@@ -1566,14 +1793,18 @@ function getComprehensiveHint(puzzle: string | Grid, values: Values, providedCan
 				}
 				break;
 			}
-			
+
 			case 'hidden_pairs': {
 				const hiddenPairs = detectHiddenPairs(candidates);
 				if (hiddenPairs.length > 0) {
 					// Check each hidden pair until we find one with eliminations
 					for (let i = 0; i < hiddenPairs.length; i++) {
 						const hintData = hiddenPairs[i];
-						const eliminations = findHiddenSetEliminations(hintData.squares, hintData.digits, candidates);
+						const eliminations = findHiddenSetEliminations(
+							hintData.squares,
+							hintData.digits,
+							candidates,
+						);
 						if (eliminations.cells.length > 0) {
 							hint = {
 								type: 'hidden_set',
@@ -1584,7 +1815,7 @@ function getComprehensiveHint(puzzle: string | Grid, values: Values, providedCan
 								unit: hintData.unit,
 								unitType: hintData.unitType,
 								eliminationCells: eliminations.cells,
-								eliminationDigits: eliminations.digits
+								eliminationDigits: eliminations.digits,
 							};
 							break; // Found a useful hint, stop checking other pairs
 						}
@@ -1592,14 +1823,19 @@ function getComprehensiveHint(puzzle: string | Grid, values: Values, providedCan
 				}
 				break;
 			}
-			
+
 			case 'naked_quads': {
 				const nakedQuads = detectNakedQuads(candidates);
 				if (nakedQuads.length > 0) {
 					// Check each naked quad until we find one with eliminations
 					for (let i = 0; i < nakedQuads.length; i++) {
 						const hintData = nakedQuads[i];
-						const eliminations = findNakedSetEliminations(hintData.squares, hintData.digits, hintData.unit, candidates);
+						const eliminations = findNakedSetEliminations(
+							hintData.squares,
+							hintData.digits,
+							hintData.unit,
+							candidates,
+						);
 						if (eliminations.cells.length > 0) {
 							hint = {
 								type: 'naked_set',
@@ -1610,7 +1846,7 @@ function getComprehensiveHint(puzzle: string | Grid, values: Values, providedCan
 								unit: hintData.unit,
 								unitType: hintData.unitType,
 								eliminationCells: eliminations.cells,
-								eliminationDigits: eliminations.digits
+								eliminationDigits: eliminations.digits,
 							};
 							break; // Found a useful hint, stop checking other quads
 						}
@@ -1618,14 +1854,18 @@ function getComprehensiveHint(puzzle: string | Grid, values: Values, providedCan
 				}
 				break;
 			}
-			
+
 			case 'hidden_triples': {
 				const hiddenTriples = detectHiddenTriples(candidates);
 				if (hiddenTriples.length > 0) {
 					// Check each hidden triple until we find one with eliminations
 					for (let i = 0; i < hiddenTriples.length; i++) {
 						const hintData = hiddenTriples[i];
-						const eliminations = findHiddenSetEliminations(hintData.squares, hintData.digits, candidates);
+						const eliminations = findHiddenSetEliminations(
+							hintData.squares,
+							hintData.digits,
+							candidates,
+						);
 						if (eliminations.cells.length > 0) {
 							hint = {
 								type: 'hidden_set',
@@ -1636,7 +1876,7 @@ function getComprehensiveHint(puzzle: string | Grid, values: Values, providedCan
 								unit: hintData.unit,
 								unitType: hintData.unitType,
 								eliminationCells: eliminations.cells,
-								eliminationDigits: eliminations.digits
+								eliminationDigits: eliminations.digits,
 							};
 							break; // Found a useful hint, stop checking other triples
 						}
@@ -1644,14 +1884,18 @@ function getComprehensiveHint(puzzle: string | Grid, values: Values, providedCan
 				}
 				break;
 			}
-			
+
 			case 'hidden_quads': {
 				const hiddenQuads = detectHiddenQuads(candidates);
 				if (hiddenQuads.length > 0) {
 					// Check each hidden quad until we find one with eliminations
 					for (let i = 0; i < hiddenQuads.length; i++) {
 						const hintData = hiddenQuads[i];
-						const eliminations = findHiddenSetEliminations(hintData.squares, hintData.digits, candidates);
+						const eliminations = findHiddenSetEliminations(
+							hintData.squares,
+							hintData.digits,
+							candidates,
+						);
 						if (eliminations.cells.length > 0) {
 							hint = {
 								type: 'hidden_set',
@@ -1662,7 +1906,7 @@ function getComprehensiveHint(puzzle: string | Grid, values: Values, providedCan
 								unit: hintData.unit,
 								unitType: hintData.unitType,
 								eliminationCells: eliminations.cells,
-								eliminationDigits: eliminations.digits
+								eliminationDigits: eliminations.digits,
 							};
 							break; // Found a useful hint, stop checking other quads
 						}
@@ -1671,13 +1915,13 @@ function getComprehensiveHint(puzzle: string | Grid, values: Values, providedCan
 				break;
 			}
 		}
-		
+
 		// If we found a hint, return it immediately (early exit optimization)
 		if (hint) {
 			return hint;
 		}
 	}
-	
+
 	// No hints found
 	return null;
 }
@@ -1713,7 +1957,10 @@ function solve(grid: string | Grid, options?: SolverOptions): Values | false {
 	return search(parseGrid(grid), options);
 }
 
-function search(values: Values | false, options?: SolverOptions): Values | false {
+function search(
+	values: Values | false,
+	options?: SolverOptions,
+): Values | false {
 	const opts: SolverOptions = options || {};
 	opts.chooseDigit = opts.chooseDigit || 'random';
 	opts.chooseSquare = opts.chooseSquare || 'minDigits';
@@ -1852,7 +2099,7 @@ function generate(difficulty?: Difficulty): Grid {
 	if (!fullGrid) {
 		throw new Error('Failed to generate full grid');
 	}
-	
+
 	let generatedGrid = copy(fullGrid);
 	const shuffledSquares = shuffle(SQUARES);
 	let filledSquares = shuffledSquares.length;
@@ -1862,10 +2109,7 @@ function generate(difficulty?: Difficulty): Grid {
 
 		delete generatedGrid[s];
 		filledSquares--;
-		if (
-			!isSolvableWithElimination(generatedGrid) ||
-			!isUnique(generatedGrid)
-		) {
+		if (!isSolvableWithElimination(generatedGrid) || !isUnique(generatedGrid)) {
 			generatedGrid[s] = fullGrid[s];
 			filledSquares++;
 		}
@@ -1998,22 +2242,22 @@ function debug(msg: string): void {
 	}
 }
 
-export type { 
-	Square, 
-	Digit, 
-	Row, 
-	Column, 
-	Unit, 
-	Grid, 
-	Values, 
-	Candidates, 
-	Hint, 
-	HintError, 
-	HintSquare, 
-	HintUnit, 
-	HintDontKnow, 
-	Conflict, 
-	SolverOptions, 
+export type {
+	Square,
+	Digit,
+	Row,
+	Column,
+	Unit,
+	Grid,
+	Values,
+	Candidates,
+	Hint,
+	HintError,
+	HintSquare,
+	HintUnit,
+	HintDontKnow,
+	Conflict,
+	SolverOptions,
 	Difficulty,
 	ComprehensiveHint,
 	ErrorHint,
@@ -2021,7 +2265,7 @@ export type {
 	SingleCellHint,
 	NakedSetHint,
 	HiddenSetHint,
-	IntersectionRemovalHint
+	IntersectionRemovalHint,
 };
 
 export { getTechniqueDifficulty, difficultyToCategory, getComprehensiveHint };

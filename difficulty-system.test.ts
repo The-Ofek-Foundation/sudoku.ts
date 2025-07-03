@@ -30,7 +30,9 @@ describe('Difficulty System', () => {
 
 	test('unknown technique defaults to medium difficulty', () => {
 		expect(getTechniqueDifficulty('unknown_technique')).toBe(5);
-		expect(difficultyToCategory(getTechniqueDifficulty('unknown_technique'))).toBe('medium');
+		expect(
+			difficultyToCategory(getTechniqueDifficulty('unknown_technique')),
+		).toBe('medium');
 	});
 
 	test('hint ordering prioritizes easier techniques', () => {
@@ -38,20 +40,26 @@ describe('Difficulty System', () => {
 		// The system should return pointing pairs first
 		const puzzle = '';
 		const values = {
-			'A1': '1', 'A2': '2', 'A3': '3',
-			'B1': '4', 'B2': '5', 'B3': '6',
-			'C1': '7', 'C2': '8', 'C3': '9'
+			A1: '1',
+			A2: '2',
+			A3: '3',
+			B1: '4',
+			B2: '5',
+			B3: '6',
+			C1: '7',
+			C2: '8',
+			C3: '9',
 		};
-		
+
 		const candidates = {
-			'A4': new Set(['1', '2']),
-			'A5': new Set(['1', '2']),
-			'B4': new Set(['3', '4']),
-			'B5': new Set(['3', '4'])
+			A4: new Set(['1', '2']),
+			A5: new Set(['1', '2']),
+			B4: new Set(['3', '4']),
+			B5: new Set(['3', '4']),
 		};
 
 		const hint = sudoku.getComprehensiveHint(puzzle, values, candidates);
-		
+
 		// The returned hint should have a difficulty property
 		expect(hint).toBeTruthy();
 		if (hint) {

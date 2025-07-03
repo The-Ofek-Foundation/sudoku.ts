@@ -1,10 +1,14 @@
-# sudoku.js
+# sudoku.ts
 
-Sudoku Javascript library, based on Peter Norvig's solver
+Modern TypeScript Sudoku library with advanced hint detection
 
-This library was extracted from the Sudoku games at https://cardgames.io/sudoku/ and https://sudokuu.com.
+This library provides a complete sudoku solving and generation system with:
 
-It contains functions to generate and solve puzzles, get a list of conflicts in
-ongoing puzzles, and serialize and deserialize puzzles.
+- **Core solving**: Fast constraint propagation and backtracking solver
+- **Puzzle generation**: Creates puzzles of varying difficulty levels
+- **Advanced hints**: Detects solving techniques from basic singles to advanced sets
+- **Type safety**: Full TypeScript support with comprehensive type definitions
+- **Modern architecture**: Clean, modular design with focused responsibilities
 
-For a more comprehensive description of the library look at http://einaregilsson.com/sudoku-in-javascript
+The library is originally inspired by Peter Norvig's solver but has been completely
+rewritten in modern TypeScript with significant enhancements.

@@ -15,175 +15,62 @@ export const ROWS: Row[] = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I'];
 export const COLS: Column[] = ['1', '2', '3', '4', '5', '6', '7', '8', '9'];
 export const DIGITS = '123456789';
 
-// Basic utility functions
-export function vals<T>(obj: Record<string, T>): T[] {
-	const result: T[] = [];
-	for (const key in obj) {
-		result.push(obj[key]);
-	}
-	return result;
-}
-
-export function keys<T>(obj: Record<string, T>): string[] {
-	const result: string[] = [];
-	for (const key in obj) {
-		result.push(key);
-	}
-	return result;
-}
-
-export function each<T>(
-	list: T[],
-	func: (item: T, index?: number) => void,
-): void {
-	for (let i = 0; i < list.length; i++) {
-		func(list[i], i);
-	}
-}
+// Basic utility functions - using modern JavaScript equivalents
+export const vals = <T>(obj: Record<string, T>): T[] => Object.values(obj);
+export const keys = <T>(obj: Record<string, T>): string[] => Object.keys(obj);
+export const each = <T>(list: T[], func: (item: T, index: number) => void): void => 
+	list.forEach(func);
 
 export function dict<T>(keys: string[], values: T[]): Record<string, T> {
-	const result: Record<string, T> = {};
-	each(keys, (key, i) => {
-		result[key] = values[i!];
-	});
-	return result;
+	return Object.fromEntries(keys.map((key, i) => [key, values[i]]));
 }
 
 export function print(s: string): void {
 	console.log(s + '\r\n');
 }
 
-export function all<T>(list: T[], func: (item: T) => boolean): boolean {
-	for (let i = 0; i < list.length; i++) {
-		if (!func(list[i])) {
-			return false;
-		}
-	}
-	return true;
-}
+// Array utility functions - using modern JavaScript equivalents
+export const all = <T>(list: T[], func: (item: T) => boolean): boolean => 
+	list.every(func);
 
-export function any<T>(list: T[], func: (item: T) => any): any {
-	for (let i = 0; i < list.length; i++) {
-		const result = func(list[i]);
-		if (result) {
-			return result;
-		}
-	}
-	return false;
-}
+export const any = <T>(list: T[], func: (item: T) => any): any => 
+	list.find(func);
 
-export function filter<T>(
-	list: T[],
-	func: (item: T, index?: number) => boolean,
-): T[] {
-	const result: T[] = [];
-	for (let i = 0; i < list.length; i++) {
-		if (func.length > 1) {
-			if (func(list[i], i)) {
-				result.push(list[i]);
-			}
-		} else if (func(list[i])) {
-			result.push(list[i]);
-		}
-	}
-	return result;
-}
+export const filter = <T>(list: T[], func: (item: T, index?: number) => boolean): T[] => 
+	list.filter(func);
 
-export function sum(list: (number | boolean)[]): number {
-	let result = 0;
-	each(list, (l) => {
-		if (typeof l === 'number') {
-			result += l;
-		} else if (typeof l === 'boolean') {
-			result += l ? 1 : 0;
-		} else {
-			throw new Error('Only numbers and booleans supported');
-		}
-	});
-	return result;
-}
+export const map = <T, U>(list: T[], expr: (value: T) => U): U[] => 
+	list.map(expr);
 
-export function some<T>(seq: T[], func: (item: T) => any): any {
-	for (let i = 0; i < seq.length; i++) {
-		const result = func(seq[i]);
-		if (result) {
-			return result;
-		}
-	}
-	return false;
-}
+export const some = <T>(seq: T[], func: (item: T) => any): any => 
+	seq.find(func);
 
-export function map<T, U>(list: T[], expr: (value: T) => U): U[] {
-	const result: U[] = [];
-	each(list, (value) => {
-		result.push(expr(value));
-	});
-	return result;
-}
-
-export function max(list: number[]): number {
-	let result = list[0];
-	for (let i = 1; i < list.length; i++) {
-		if (list[i] > result) {
-			result = list[i];
-		}
-	}
-	return result;
-}
-
-export function min(list: number[]): number {
-	let result = list[0];
-	for (let i = 1; i < list.length; i++) {
-		if (list[i] < result) {
-			result = list[i];
-		}
-	}
-	return result;
-}
-
-export function randomElement<T>(list: T[]): T {
-	return list[Math.floor(Math.random() * list.length)];
-}
-
-export function contains<T>(list: T[], val: T): boolean {
-	return list.indexOf(val) !== -1;
-}
+export const max = (list: number[]): number => Math.max(...list);
+export const min = (list: number[]): number => Math.min(...list);
+export const randomElement = <T>(list: T[]): T => 
+	list[Math.floor(Math.random() * list.length)];
+export const contains = <T>(list: T[], val: T): boolean => list.includes(val);
 
 export function set<T>(list: T[]): T[] {
-	const result: T[] = [];
-	each(list, (val) => {
-		if (!contains(result, val)) {
-			result.push(val);
-		}
-	});
-	return result;
+	return [...new Set(list)];
 }
 
-export function concat<T>(...arrays: T[][]): T[] {
-	return Array.prototype.concat.apply([], arrays);
-}
+export const concat = <T>(...arrays: T[][]): T[] => arrays.flat();
 
-export function repeat(str: string, times: number): string {
-	return Array(times + 1).join(str);
-}
+export const repeat = (str: string, times: number): string => str.repeat(times);
 
 export function center(str: string, width: number): string {
 	const pad = width - str.length;
 	if (pad <= 0) {
 		return str;
 	}
-	return (
-		repeat(' ', Math.floor(pad / 2)) + str + repeat(' ', Math.ceil(pad / 2))
-	);
+	return ' '.repeat(Math.floor(pad / 2)) + str + ' '.repeat(Math.ceil(pad / 2));
 }
 
-export function copy(board: Values): Values {
-	return dict(keys(board), vals(board));
-}
+export const copy = (board: Values): Values => ({ ...board });
 
-export function randomInt(min: number, max: number): number {
-	return Math.floor(Math.random() * (max - min + 1)) + min;
-}
+export const randomInt = (min: number, max: number): number => 
+	Math.floor(Math.random() * (max - min + 1)) + min;
 
 export function shuffle<T>(seq: T[]): T[] {
 	const result = [...seq];
@@ -194,30 +81,13 @@ export function shuffle<T>(seq: T[]): T[] {
 	return result;
 }
 
-export function range(count: number): number[] {
-	const result: number[] = [];
-	for (let i = 0; i < count; i++) {
-		result.push(i);
-	}
-	return result;
-}
+export const range = (count: number): number[] => 
+	Array.from({ length: count }, (_, i) => i);
 
-export function chars(s: string): string[] {
-	const result: string[] = [];
-	for (let i = 0; i < s.length; i++) {
-		result.push(s.charAt(i));
-	}
-	return result;
-}
+export const chars = (s: string): string[] => [...s];
 
 export function cross(a: string[], b: string[]): string[] {
-	const result: string[] = [];
-	for (let i = 0; i < a.length; i++) {
-		for (let j = 0; j < b.length; j++) {
-			result.push(a[i] + b[j]);
-		}
-	}
-	return result;
+	return a.flatMap(x => b.map(y => x + y));
 }
 
 // Generate the core data structures

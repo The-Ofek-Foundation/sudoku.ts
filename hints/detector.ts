@@ -860,9 +860,9 @@ export function getHint(
 			case 'last_remaining_in_row':
 			case 'last_remaining_in_column': {
 				const lastRemainingInUnits = detectLastRemainingInUnits(values);
-				
+
 				// Filter by the specific technique type
-				const filteredResults = lastRemainingInUnits.filter(result => {
+				const filteredResults = lastRemainingInUnits.filter((result) => {
 					const unitType = getUnitType(result.unit);
 					return technique === `last_remaining_in_${unitType}`;
 				});

@@ -96,43 +96,37 @@ export const UNIT_LIST: Unit[] = [];
 export const UNITS: Record<Square, Unit[]> = {};
 export const PEERS: Record<Square, Square[]> = {};
 
-// Initialize unit list
-for (let i = 0; i < ROWS.length; i++) {
-	UNIT_LIST.push(cross([ROWS[i]], COLS));
-}
-
-for (let i = 0; i < COLS.length; i++) {
-	UNIT_LIST.push(cross(ROWS, [COLS[i]]));
-}
+// Initialize unit list - rows, columns, and boxes
+ROWS.forEach(row => UNIT_LIST.push(cross([row], COLS)));
+COLS.forEach(col => UNIT_LIST.push(cross(ROWS, [col])));
 
 const groupCols = ['123', '456', '789'];
 const groupRows = ['ABC', 'DEF', 'GHI'];
-for (let c = 0; c < groupCols.length; c++) {
-	for (let r = 0; r < groupRows.length; r++) {
-		UNIT_LIST.push(cross(chars(groupRows[r]), chars(groupCols[c])));
-	}
-}
+groupRows.forEach(rowGroup => 
+	groupCols.forEach(colGroup => 
+		UNIT_LIST.push(cross(chars(rowGroup), chars(colGroup)))
+	)
+);
 
 // Initialize units and peers for each square
-for (let i = 0; i < SQUARES.length; i++) {
-	const square = SQUARES[i];
+SQUARES.forEach(square => {
 	const squarePeers: Square[] = [];
 	const squareUnits: Unit[] = [];
 
-	for (let j = 0; j < UNIT_LIST.length; j++) {
-		const unit = UNIT_LIST[j];
+	UNIT_LIST.forEach(unit => {
 		if (contains(unit, square)) {
 			squareUnits.push(unit);
-			for (let k = 0; k < unit.length; k++) {
-				if (!contains(squarePeers, unit[k]) && unit[k] !== square) {
-					squarePeers.push(unit[k]);
+			unit.forEach(unitSquare => {
+				if (!contains(squarePeers, unitSquare) && unitSquare !== square) {
+					squarePeers.push(unitSquare);
 				}
-			}
+			});
 		}
-	}
+	});
+	
 	UNITS[square] = squareUnits;
 	PEERS[square] = squarePeers;
-}
+});
 
 /**
  * Helper function to convert values to candidates format for hint detection

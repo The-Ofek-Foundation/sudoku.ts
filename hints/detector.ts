@@ -104,64 +104,16 @@ function detectMissingCandidates(
 }
 
 /**
- * Detects cells that are the last remaining empty cell in a box
+ * Generic function to detect cells that are the last remaining empty cell in any unit type
+ * Replaces the three separate functions for box/row/column detection
  */
-function detectLastRemainingInBox(
+function detectLastRemainingInUnits(
 	values: Values,
 ): { square: Square; digit: Digit; unit: Unit }[] {
 	const results: { square: Square; digit: Digit; unit: Unit }[] = [];
 
-	// Check each 3x3 box
-	const groupRows = ['ABC', 'DEF', 'GHI'];
-	const groupCols = ['123', '456', '789'];
-
-	for (let r = 0; r < groupRows.length; r++) {
-		for (let c = 0; c < groupCols.length; c++) {
-			const boxSquares = cross(chars(groupRows[r]), chars(groupCols[c]));
-			const emptyCells = boxSquares.filter(
-				(square) => !values[square] || values[square].length > 1,
-			);
-
-			if (emptyCells.length === 1) {
-				const square = emptyCells[0];
-				const usedDigits = new Set<Digit>();
-
-				// Find all digits already used in this box
-				for (const boxSquare of boxSquares) {
-					if (values[boxSquare] && values[boxSquare].length === 1) {
-						usedDigits.add(values[boxSquare]);
-					}
-				}
-
-				// The missing digit must go in the empty cell
-				for (const digit of DIGITS) {
-					if (!usedDigits.has(digit)) {
-						results.push({
-							square,
-							digit,
-							unit: boxSquares,
-						});
-						break;
-					}
-				}
-			}
-		}
-	}
-
-	return results;
-}
-
-/**
- * Detects cells that are the last remaining empty cell in a row
- */
-function detectLastRemainingInRow(
-	values: Values,
-): { square: Square; digit: Digit; unit: Unit }[] {
-	const results: { square: Square; digit: Digit; unit: Unit }[] = [];
-
-	for (const row of ROWS) {
-		const rowSquares = cross(COLS, [row]);
-		const emptyCells = rowSquares.filter(
+	for (const unit of UNIT_LIST) {
+		const emptyCells = unit.filter(
 			(square) => !values[square] || values[square].length > 1,
 		);
 
@@ -169,10 +121,10 @@ function detectLastRemainingInRow(
 			const square = emptyCells[0];
 			const usedDigits = new Set<Digit>();
 
-			// Find all digits already used in this row
-			for (const rowSquare of rowSquares) {
-				if (values[rowSquare] && values[rowSquare].length === 1) {
-					usedDigits.add(values[rowSquare]);
+			// Find all digits already used in this unit
+			for (const unitSquare of unit) {
+				if (values[unitSquare] && values[unitSquare].length === 1) {
+					usedDigits.add(values[unitSquare]);
 				}
 			}
 
@@ -182,49 +134,7 @@ function detectLastRemainingInRow(
 					results.push({
 						square,
 						digit,
-						unit: rowSquares,
-					});
-					break;
-				}
-			}
-		}
-	}
-
-	return results;
-}
-
-/**
- * Detects cells that are the last remaining empty cell in a column
- */
-function detectLastRemainingInColumn(
-	values: Values,
-): { square: Square; digit: Digit; unit: Unit }[] {
-	const results: { square: Square; digit: Digit; unit: Unit }[] = [];
-
-	for (const col of COLS) {
-		const colSquares = cross(ROWS, [col]);
-		const emptyCells = colSquares.filter(
-			(square) => !values[square] || values[square].length > 1,
-		);
-
-		if (emptyCells.length === 1) {
-			const square = emptyCells[0];
-			const usedDigits = new Set<Digit>();
-
-			// Find all digits already used in this column
-			for (const colSquare of colSquares) {
-				if (values[colSquare] && values[colSquare].length === 1) {
-					usedDigits.add(values[colSquare]);
-				}
-			}
-
-			// The missing digit must go in the empty cell
-			for (const digit of DIGITS) {
-				if (!usedDigits.has(digit)) {
-					results.push({
-						square,
-						digit,
-						unit: colSquares,
+						unit,
 					});
 					break;
 				}
@@ -946,46 +856,23 @@ export function getHint(
 				break;
 			}
 
-			case 'last_remaining_in_box': {
-				const lastInBox = detectLastRemainingInBox(values);
-				if (lastInBox.length > 0) {
-					const hintData = lastInBox[0];
-					hint = {
-						type: 'single_cell',
-						technique: 'last_remaining_in_box',
-						difficulty: getTechniqueDifficulty('last_remaining_in_box'),
-						square: hintData.square,
-						digit: hintData.digit,
-						unit: hintData.unit,
-					};
-				}
-				break;
-			}
-
-			case 'last_remaining_in_row': {
-				const lastInRow = detectLastRemainingInRow(values);
-				if (lastInRow.length > 0) {
-					const hintData = lastInRow[0];
-					hint = {
-						type: 'single_cell',
-						technique: 'last_remaining_in_row',
-						difficulty: getTechniqueDifficulty('last_remaining_in_row'),
-						square: hintData.square,
-						digit: hintData.digit,
-						unit: hintData.unit,
-					};
-				}
-				break;
-			}
-
+			case 'last_remaining_in_box':
+			case 'last_remaining_in_row':
 			case 'last_remaining_in_column': {
-				const lastInColumn = detectLastRemainingInColumn(values);
-				if (lastInColumn.length > 0) {
-					const hintData = lastInColumn[0];
+				const lastRemainingInUnits = detectLastRemainingInUnits(values);
+				
+				// Filter by the specific technique type
+				const filteredResults = lastRemainingInUnits.filter(result => {
+					const unitType = getUnitType(result.unit);
+					return technique === `last_remaining_in_${unitType}`;
+				});
+
+				if (filteredResults.length > 0) {
+					const hintData = filteredResults[0];
 					hint = {
 						type: 'single_cell',
-						technique: 'last_remaining_in_column',
-						difficulty: getTechniqueDifficulty('last_remaining_in_column'),
+						technique,
+						difficulty: getTechniqueDifficulty(technique),
 						square: hintData.square,
 						digit: hintData.digit,
 						unit: hintData.unit,

@@ -16,6 +16,7 @@ export type {
 	NakedSetHint,
 	HiddenSetHint,
 	IntersectionRemovalHint,
+	YWingHint,
 	HintBase,
 } from './types.js';
 

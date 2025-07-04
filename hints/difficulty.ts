@@ -25,6 +25,10 @@ export const TECHNIQUE_DIFFICULTIES: Record<string, number> = {
 
 	// Stage 5: Advanced Techniques (8-10)
 	hidden_quads: 8,
+	x_wing: 8,
+	chute_remote_pairs: 8,
+	simple_coloring: 9,
+	y_wing: 7,
 };
 
 // Pre-sorted array of techniques ordered by difficulty (easiest first)

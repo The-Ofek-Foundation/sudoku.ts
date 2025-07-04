@@ -18,9 +18,14 @@ import type {
 	NakedSetHint,
 	HiddenSetHint,
 	IntersectionRemovalHint,
+	XWingHint,
+	ChuteRemotePairsHint,
+	SimpleColoringHint,
+	YWingHint,
 } from './types.js';
 
 import { getTechniqueDifficulty, SORTED_TECHNIQUES } from './difficulty.js';
+import { detectYWing } from './y-wing.js';
 
 import {
 	SQUARES,
@@ -717,6 +722,673 @@ function detectBoxLineReduction(candidates: Candidates): {
 }
 
 /**
+ * Detects X-Wing patterns - when a digit appears in only two positions in each of two parallel units,
+ * and these positions are aligned in the perpendicular direction
+ */
+function detectXWing(candidates: Candidates): {
+	digit: Digit;
+	squares: Square[];
+	primaryUnits: Unit[];
+	primaryUnitType: 'row' | 'column';
+	secondaryUnits: Unit[];
+	secondaryUnitType: 'row' | 'column';
+	eliminationCells: Square[];
+}[] {
+	const results: {
+		digit: Digit;
+		squares: Square[];
+		primaryUnits: Unit[];
+		primaryUnitType: 'row' | 'column';
+		secondaryUnits: Unit[];
+		secondaryUnitType: 'row' | 'column';
+		eliminationCells: Square[];
+	}[] = [];
+
+	// Check X-Wings in rows (eliminating in columns)
+	for (const digit of DIGITS) {
+		// Find all rows that have exactly 2 candidates for this digit
+		const rowsWithPairs: { row: string; squares: Square[] }[] = [];
+
+		for (const row of ROWS) {
+			const rowSquares = cross([row], COLS);
+			const digitSquares = rowSquares.filter(
+				(square) => candidates[square] && candidates[square].has(digit),
+			);
+
+			if (digitSquares.length === 2) {
+				rowsWithPairs.push({ row, squares: digitSquares });
+			}
+		}
+
+		// Check all pairs of rows with exactly 2 candidates
+		for (let i = 0; i < rowsWithPairs.length; i++) {
+			for (let j = i + 1; j < rowsWithPairs.length; j++) {
+				const row1Data = rowsWithPairs[i];
+				const row2Data = rowsWithPairs[j];
+
+				// Check if the candidates are aligned in the same columns
+				const row1Cols = row1Data.squares.map((sq) => sq[1]).sort();
+				const row2Cols = row2Data.squares.map((sq) => sq[1]).sort();
+
+				if (row1Cols.join('') === row2Cols.join('')) {
+					// We have an X-Wing! The digit must be in these 4 cells
+					const xWingSquares = [...row1Data.squares, ...row2Data.squares];
+
+					// Find elimination cells - other cells in the same columns
+					const eliminationCells: Square[] = [];
+					for (const col of row1Cols) {
+						const colSquares = cross(ROWS, [col]);
+						for (const square of colSquares) {
+							if (
+								!xWingSquares.includes(square) &&
+								candidates[square] &&
+								candidates[square].has(digit)
+							) {
+								eliminationCells.push(square);
+							}
+						}
+					}
+
+					if (eliminationCells.length > 0) {
+						const primaryUnits = [
+							cross([row1Data.row], COLS),
+							cross([row2Data.row], COLS),
+						];
+						const secondaryUnits = row1Cols.map((col) => cross(ROWS, [col]));
+
+						results.push({
+							digit,
+							squares: xWingSquares,
+							primaryUnits,
+							primaryUnitType: 'row',
+							secondaryUnits,
+							secondaryUnitType: 'column',
+							eliminationCells,
+						});
+					}
+				}
+			}
+		}
+	}
+
+	// Check X-Wings in columns (eliminating in rows)
+	for (const digit of DIGITS) {
+		// Find all columns that have exactly 2 candidates for this digit
+		const colsWithPairs: { col: string; squares: Square[] }[] = [];
+
+		for (const col of COLS) {
+			const colSquares = cross(ROWS, [col]);
+			const digitSquares = colSquares.filter(
+				(square) => candidates[square] && candidates[square].has(digit),
+			);
+
+			if (digitSquares.length === 2) {
+				colsWithPairs.push({ col, squares: digitSquares });
+			}
+		}
+
+		// Check all pairs of columns with exactly 2 candidates
+		for (let i = 0; i < colsWithPairs.length; i++) {
+			for (let j = i + 1; j < colsWithPairs.length; j++) {
+				const col1Data = colsWithPairs[i];
+				const col2Data = colsWithPairs[j];
+
+				// Check if the candidates are aligned in the same rows
+				const col1Rows = col1Data.squares.map((sq) => sq[0]).sort();
+				const col2Rows = col2Data.squares.map((sq) => sq[0]).sort();
+
+				if (col1Rows.join('') === col2Rows.join('')) {
+					// We have an X-Wing! The digit must be in these 4 cells
+					const xWingSquares = [...col1Data.squares, ...col2Data.squares];
+
+					// Find elimination cells - other cells in the same rows
+					const eliminationCells: Square[] = [];
+					for (const row of col1Rows) {
+						const rowSquares = cross([row], COLS);
+						for (const square of rowSquares) {
+							if (
+								!xWingSquares.includes(square) &&
+								candidates[square] &&
+								candidates[square].has(digit)
+							) {
+								eliminationCells.push(square);
+							}
+						}
+					}
+
+					if (eliminationCells.length > 0) {
+						const primaryUnits = [
+							cross(ROWS, [col1Data.col]),
+							cross(ROWS, [col2Data.col]),
+						];
+						const secondaryUnits = col1Rows.map((row) => cross([row], COLS));
+
+						results.push({
+							digit,
+							squares: xWingSquares,
+							primaryUnits,
+							primaryUnitType: 'column',
+							secondaryUnits,
+							secondaryUnitType: 'row',
+							eliminationCells,
+						});
+					}
+				}
+			}
+		}
+	}
+
+	return results;
+}
+
+/**
+ * Detects Chute Remote Pairs - two bi-value cells with same candidates in same chute,
+ * where only one candidate appears in the third box, allowing eliminations
+ */
+function detectChuteRemotePairs(candidates: Candidates): {
+	digits: [Digit, Digit];
+	remotePairSquares: [Square, Square];
+	chuteType: 'horizontal' | 'vertical';
+	thirdBoxSquares: Square[];
+	presentDigit: Digit;
+	absentDigit: Digit;
+	eliminationCells: Square[];
+}[] {
+	const results: {
+		digits: [Digit, Digit];
+		remotePairSquares: [Square, Square];
+		chuteType: 'horizontal' | 'vertical';
+		thirdBoxSquares: Square[];
+		presentDigit: Digit;
+		absentDigit: Digit;
+		eliminationCells: Square[];
+	}[] = [];
+
+	// Helper function to get box index from square
+	function getBoxIndex(square: Square): number {
+		const row = square[0];
+		const col = square[1];
+		const boxRow =
+			row >= 'A' && row <= 'C' ? 0 : row >= 'D' && row <= 'F' ? 1 : 2;
+		const boxCol =
+			col >= '1' && col <= '3' ? 0 : col >= '4' && col <= '6' ? 1 : 2;
+		return boxRow * 3 + boxCol;
+	}
+
+	// Helper function to get all squares in a box
+	function getBoxSquares(boxIndex: number): Square[] {
+		const boxRow = Math.floor(boxIndex / 3);
+		const boxCol = boxIndex % 3;
+		const groupRows = ['ABC', 'DEF', 'GHI'];
+		const groupCols = ['123', '456', '789'];
+		return cross(chars(groupRows[boxRow]), chars(groupCols[boxCol]));
+	}
+
+	// Helper function to check if two squares can see each other
+	function canSeeEachOther(square1: Square, square2: Square): boolean {
+		return PEERS[square1].includes(square2);
+	}
+
+	// Find all bi-value cells (cells with exactly 2 candidates)
+	const biValueCells: { square: Square; candidates: [Digit, Digit] }[] = [];
+	for (const square of SQUARES) {
+		if (candidates[square] && candidates[square].size === 2) {
+			const cellCandidates = Array.from(candidates[square]).sort() as [
+				Digit,
+				Digit,
+			];
+			biValueCells.push({ square, candidates: cellCandidates });
+		}
+	}
+
+	// Check horizontal chutes (3 boxes in a row)
+	for (let chuteRow = 0; chuteRow < 3; chuteRow++) {
+		const boxIndices = [chuteRow * 3, chuteRow * 3 + 1, chuteRow * 3 + 2];
+
+		// Find all pairs of bi-value cells with same candidates in this chute
+		for (let i = 0; i < biValueCells.length; i++) {
+			for (let j = i + 1; j < biValueCells.length; j++) {
+				const cell1 = biValueCells[i];
+				const cell2 = biValueCells[j];
+
+				// Check if they have the same candidates
+				if (
+					cell1.candidates[0] === cell2.candidates[0] &&
+					cell1.candidates[1] === cell2.candidates[1]
+				) {
+					const box1 = getBoxIndex(cell1.square);
+					const box2 = getBoxIndex(cell2.square);
+
+					// Check if both cells are in this horizontal chute and different boxes
+					if (
+						boxIndices.includes(box1) &&
+						boxIndices.includes(box2) &&
+						box1 !== box2 &&
+						!canSeeEachOther(cell1.square, cell2.square)
+					) {
+						// Find the third box in the chute
+						const thirdBoxIndex = boxIndices.find(
+							(boxIndex) => boxIndex !== box1 && boxIndex !== box2,
+						);
+						if (thirdBoxIndex !== undefined) {
+							const thirdBoxSquares = getBoxSquares(thirdBoxIndex);
+
+							// Check which candidate appears in the third box
+							const digit1 = cell1.candidates[0];
+							const digit2 = cell1.candidates[1];
+
+							let digit1InThirdBox = false;
+							let digit2InThirdBox = false;
+
+							for (const square of thirdBoxSquares) {
+								if (candidates[square]) {
+									if (candidates[square].has(digit1)) digit1InThirdBox = true;
+									if (candidates[square].has(digit2)) digit2InThirdBox = true;
+								}
+								// Also check placed values
+								const placedDigit = Object.keys(candidates).find(
+									(s) =>
+										s === square && candidates[s] && candidates[s].size === 0,
+								);
+								// For placed values, we need to check the actual values
+								// This is a bit tricky with our current structure, so we'll skip placed values for now
+							}
+
+							// If only one digit appears in the third box, we can make eliminations
+							if (digit1InThirdBox !== digit2InThirdBox) {
+								const presentDigit = digit1InThirdBox ? digit1 : digit2;
+								const absentDigit = digit1InThirdBox ? digit2 : digit1;
+
+								// Find elimination cells - cells that can see both remote pair cells
+								const eliminationCells: Square[] = [];
+								for (const square of SQUARES) {
+									if (
+										candidates[square] &&
+										candidates[square].has(absentDigit) &&
+										canSeeEachOther(square, cell1.square) &&
+										canSeeEachOther(square, cell2.square)
+									) {
+										eliminationCells.push(square);
+									}
+								}
+
+								if (eliminationCells.length > 0) {
+									results.push({
+										digits: cell1.candidates,
+										remotePairSquares: [cell1.square, cell2.square],
+										chuteType: 'horizontal',
+										thirdBoxSquares,
+										presentDigit,
+										absentDigit,
+										eliminationCells,
+									});
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+
+	// Check vertical chutes (3 boxes in a column)
+	for (let chuteCol = 0; chuteCol < 3; chuteCol++) {
+		const boxIndices = [chuteCol, chuteCol + 3, chuteCol + 6];
+
+		// Find all pairs of bi-value cells with same candidates in this chute
+		for (let i = 0; i < biValueCells.length; i++) {
+			for (let j = i + 1; j < biValueCells.length; j++) {
+				const cell1 = biValueCells[i];
+				const cell2 = biValueCells[j];
+
+				// Check if they have the same candidates
+				if (
+					cell1.candidates[0] === cell2.candidates[0] &&
+					cell1.candidates[1] === cell2.candidates[1]
+				) {
+					const box1 = getBoxIndex(cell1.square);
+					const box2 = getBoxIndex(cell2.square);
+
+					// Check if both cells are in this vertical chute and different boxes
+					if (
+						boxIndices.includes(box1) &&
+						boxIndices.includes(box2) &&
+						box1 !== box2 &&
+						!canSeeEachOther(cell1.square, cell2.square)
+					) {
+						// Find the third box in the chute
+						const thirdBoxIndex = boxIndices.find(
+							(boxIndex) => boxIndex !== box1 && boxIndex !== box2,
+						);
+						if (thirdBoxIndex !== undefined) {
+							const thirdBoxSquares = getBoxSquares(thirdBoxIndex);
+
+							// Check which candidate appears in the third box
+							const digit1 = cell1.candidates[0];
+							const digit2 = cell1.candidates[1];
+
+							let digit1InThirdBox = false;
+							let digit2InThirdBox = false;
+
+							for (const square of thirdBoxSquares) {
+								if (candidates[square]) {
+									if (candidates[square].has(digit1)) digit1InThirdBox = true;
+									if (candidates[square].has(digit2)) digit2InThirdBox = true;
+								}
+							}
+
+							// If only one digit appears in the third box, we can make eliminations
+							if (digit1InThirdBox !== digit2InThirdBox) {
+								const presentDigit = digit1InThirdBox ? digit1 : digit2;
+								const absentDigit = digit1InThirdBox ? digit2 : digit1;
+
+								// Find elimination cells - cells that can see both remote pair cells
+								const eliminationCells: Square[] = [];
+								for (const square of SQUARES) {
+									if (
+										candidates[square] &&
+										candidates[square].has(absentDigit) &&
+										canSeeEachOther(square, cell1.square) &&
+										canSeeEachOther(square, cell2.square)
+									) {
+										eliminationCells.push(square);
+									}
+								}
+
+								if (eliminationCells.length > 0) {
+									results.push({
+										digits: cell1.candidates,
+										remotePairSquares: [cell1.square, cell2.square],
+										chuteType: 'vertical',
+										thirdBoxSquares,
+										presentDigit,
+										absentDigit,
+										eliminationCells,
+									});
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+
+	return results;
+}
+
+/**
+ * Detects Simple Coloring patterns - chains of bi-location links for a single digit
+ * with eliminations based on color conflicts
+ */
+function detectSimpleColoring(candidates: Candidates): {
+	digit: Digit;
+	chain: Square[];
+	chainColors: Record<Square, 'color1' | 'color2'>;
+	eliminationCells: Square[];
+	rule: 'rule_2' | 'rule_4';
+	conflictUnit?: Unit;
+	conflictUnitType?: string;
+	witnessCell?: Square;
+}[] {
+	const results: {
+		digit: Digit;
+		chain: Square[];
+		chainColors: Record<Square, 'color1' | 'color2'>;
+		eliminationCells: Square[];
+		rule: 'rule_2' | 'rule_4';
+		conflictUnit?: Unit;
+		conflictUnitType?: string;
+		witnessCell?: Square;
+	}[] = [];
+
+	// Helper function to find bi-location links for a digit
+	function findBiLocationLinks(digit: Digit): Map<Square, Square[]> {
+		const links = new Map<Square, Square[]>();
+
+		// Check all units for bi-location links
+		for (const unit of UNIT_LIST) {
+			const candidatesInUnit = unit.filter(
+				(square) => candidates[square] && candidates[square].has(digit),
+			);
+
+			// Bi-location: exactly 2 candidates in this unit
+			if (candidatesInUnit.length === 2) {
+				const [square1, square2] = candidatesInUnit;
+
+				// Add bidirectional links
+				if (!links.has(square1)) links.set(square1, []);
+				if (!links.has(square2)) links.set(square2, []);
+
+				links.get(square1)!.push(square2);
+				links.get(square2)!.push(square1);
+			}
+		}
+
+		return links;
+	}
+
+	// Helper function to build chains from links
+	function buildChains(links: Map<Square, Square[]>): Square[][] {
+		const visited = new Set<Square>();
+		const chains: Square[][] = [];
+
+		for (const startSquare of links.keys()) {
+			if (visited.has(startSquare)) continue;
+
+			const chain: Square[] = [];
+			const queue = [startSquare];
+
+			while (queue.length > 0) {
+				const current = queue.shift()!;
+				if (visited.has(current)) continue;
+
+				visited.add(current);
+				chain.push(current);
+
+				// Add all linked squares to queue
+				const linkedSquares = links.get(current) || [];
+				for (const linked of linkedSquares) {
+					if (!visited.has(linked)) {
+						queue.push(linked);
+					}
+				}
+			}
+
+			if (chain.length >= 2) {
+				chains.push(chain);
+			}
+		}
+
+		return chains;
+	}
+
+	// Helper function to assign colors to chain
+	function assignColors(
+		chain: Square[],
+		links: Map<Square, Square[]>,
+	): Map<Square, 'color1' | 'color2'> {
+		const colors = new Map<Square, 'color1' | 'color2'>();
+		if (chain.length === 0) return colors;
+
+		// Start with first square as color1
+		const queue: { square: Square; color: 'color1' | 'color2' }[] = [
+			{ square: chain[0], color: 'color1' },
+		];
+
+		while (queue.length > 0) {
+			const { square, color } = queue.shift()!;
+			if (colors.has(square)) continue;
+
+			colors.set(square, color);
+
+			// Assign opposite color to all linked squares
+			const linkedSquares = links.get(square) || [];
+			const oppositeColor: 'color1' | 'color2' =
+				color === 'color1' ? 'color2' : 'color1';
+
+			for (const linked of linkedSquares) {
+				if (!colors.has(linked)) {
+					queue.push({ square: linked, color: oppositeColor });
+				}
+			}
+		}
+
+		return colors;
+	}
+
+	// Helper function to check Rule 2 (same color twice in unit)
+	function checkRule2(
+		digit: Digit,
+		chain: Square[],
+		colors: Map<Square, 'color1' | 'color2'>,
+	): {
+		eliminationCells: Square[];
+		conflictUnit: Unit;
+		conflictUnitType: string;
+	} | null {
+		// Check each unit for multiple cells of same color
+		for (const unit of UNIT_LIST) {
+			const color1Cells: Square[] = [];
+			const color2Cells: Square[] = [];
+
+			for (const square of unit) {
+				if (colors.has(square)) {
+					const color = colors.get(square)!;
+					if (color === 'color1') {
+						color1Cells.push(square);
+					} else {
+						color2Cells.push(square);
+					}
+				}
+			}
+
+			// If we have multiple cells of the same color in a unit, that color must be false
+			let falseColor: 'color1' | 'color2' | null = null;
+			if (color1Cells.length >= 2) {
+				falseColor = 'color1';
+			} else if (color2Cells.length >= 2) {
+				falseColor = 'color2';
+			}
+
+			if (falseColor) {
+				// Find all cells with the false color to eliminate
+				const eliminationCells: Square[] = [];
+				for (const [square, color] of colors.entries()) {
+					if (color === falseColor) {
+						eliminationCells.push(square);
+					}
+				}
+
+				return {
+					eliminationCells,
+					conflictUnit: unit,
+					conflictUnitType: getUnitType(unit),
+				};
+			}
+		}
+
+		return null;
+	}
+
+	// Helper function to check Rule 4 (cell sees both colors)
+	function checkRule4(
+		digit: Digit,
+		chain: Square[],
+		colors: Map<Square, 'color1' | 'color2'>,
+	): {
+		eliminationCells: Square[];
+		witnessCell: Square;
+	} | null {
+		// Find cells that can see both colors
+		for (const square of SQUARES) {
+			if (
+				candidates[square] &&
+				candidates[square].has(digit) &&
+				!colors.has(square)
+			) {
+				let seesColor1 = false;
+				let seesColor2 = false;
+
+				// Check if this cell can see any color1 or color2 cells
+				for (const peer of PEERS[square]) {
+					if (colors.has(peer)) {
+						const color = colors.get(peer)!;
+						if (color === 'color1') seesColor1 = true;
+						if (color === 'color2') seesColor2 = true;
+					}
+				}
+
+				// If cell sees both colors, it can be eliminated
+				if (seesColor1 && seesColor2) {
+					return {
+						eliminationCells: [square],
+						witnessCell: square,
+					};
+				}
+			}
+		}
+
+		return null;
+	}
+
+	// Check each digit for Simple Colouring patterns
+	for (const digit of DIGITS) {
+		const links = findBiLocationLinks(digit);
+		if (links.size === 0) continue;
+
+		const chains = buildChains(links);
+
+		for (const chain of chains) {
+			if (chain.length < 2) continue;
+
+			const colors = assignColors(chain, links);
+
+			// Check Rule 2 first (same color twice in unit)
+			const rule2Result = checkRule2(digit, chain, colors);
+			if (rule2Result && rule2Result.eliminationCells.length > 0) {
+				// Convert colors Map to Record for the hint
+				const chainColors: Record<Square, 'color1' | 'color2'> = {};
+				for (const [square, color] of colors.entries()) {
+					chainColors[square] = color;
+				}
+
+				results.push({
+					digit,
+					chain,
+					chainColors,
+					eliminationCells: rule2Result.eliminationCells,
+					rule: 'rule_2',
+					conflictUnit: rule2Result.conflictUnit,
+					conflictUnitType: rule2Result.conflictUnitType,
+				});
+			}
+
+			// Check Rule 4 (cell sees both colors)
+			const rule4Result = checkRule4(digit, chain, colors);
+			if (rule4Result && rule4Result.eliminationCells.length > 0) {
+				// Convert colors Map to Record for the hint
+				const chainColors: Record<Square, 'color1' | 'color2'> = {};
+				for (const [square, color] of colors.entries()) {
+					chainColors[square] = color;
+				}
+
+				results.push({
+					digit,
+					chain,
+					chainColors,
+					eliminationCells: rule4Result.eliminationCells,
+					rule: 'rule_4',
+					witnessCell: rule4Result.witnessCell,
+				});
+			}
+		}
+	}
+
+	return results;
+}
+
+/**
  * Helper function to convert values to candidates format for hint detection
  */
 export function valuesToCandidates(values: Values): Candidates {
@@ -1097,6 +1769,93 @@ export function getHint(
 							break; // Found a useful hint, stop checking other triples
 						}
 					}
+				}
+				break;
+			}
+
+			case 'x_wing': {
+				const xWings = detectXWing(candidates);
+				if (xWings.length > 0) {
+					// Check each X-Wing until we find one with eliminations
+					for (let i = 0; i < xWings.length; i++) {
+						const hintData = xWings[i];
+						if (hintData.eliminationCells.length > 0) {
+							hint = {
+								type: 'x_wing',
+								technique: 'x_wing',
+								difficulty: getTechniqueDifficulty('x_wing'),
+								digit: hintData.digit,
+								squares: hintData.squares,
+								primaryUnits: hintData.primaryUnits,
+								primaryUnitType: hintData.primaryUnitType,
+								secondaryUnits: hintData.secondaryUnits,
+								secondaryUnitType: hintData.secondaryUnitType,
+								eliminationCells: hintData.eliminationCells,
+							};
+							break; // Found a useful hint, stop checking other X-Wings
+						}
+					}
+				}
+				break;
+			}
+
+			case 'chute_remote_pairs': {
+				const chuteRemotePairs = detectChuteRemotePairs(candidates);
+				if (chuteRemotePairs.length > 0) {
+					// Check each pattern until we find one with eliminations
+					for (let i = 0; i < chuteRemotePairs.length; i++) {
+						const hintData = chuteRemotePairs[i];
+						if (hintData.eliminationCells.length > 0) {
+							hint = {
+								type: 'chute_remote_pairs',
+								technique: 'chute_remote_pairs',
+								difficulty: getTechniqueDifficulty('chute_remote_pairs'),
+								digits: hintData.digits,
+								remotePairSquares: hintData.remotePairSquares,
+								chuteType: hintData.chuteType,
+								thirdBoxSquares: hintData.thirdBoxSquares,
+								presentDigit: hintData.presentDigit,
+								absentDigit: hintData.absentDigit,
+								eliminationCells: hintData.eliminationCells,
+							};
+							break; // Found a useful hint, stop checking other patterns
+						}
+					}
+				}
+				break;
+			}
+
+			case 'simple_coloring': {
+				const simpleColorings = detectSimpleColoring(candidates);
+				if (simpleColorings.length > 0) {
+					// Check each pattern until we find one with eliminations
+					for (let i = 0; i < simpleColorings.length; i++) {
+						const hintData = simpleColorings[i];
+						if (hintData.eliminationCells.length > 0) {
+							hint = {
+								type: 'simple_coloring',
+								technique: 'simple_coloring',
+								difficulty: getTechniqueDifficulty('simple_coloring'),
+								digit: hintData.digit,
+								chain: hintData.chain,
+								chainColors: hintData.chainColors,
+								eliminationCells: hintData.eliminationCells,
+								rule: hintData.rule,
+								conflictUnit: hintData.conflictUnit,
+								conflictUnitType: hintData.conflictUnitType,
+								witnessCell: hintData.witnessCell,
+							};
+							break; // Found a useful hint, stop checking other patterns
+						}
+					}
+				}
+				break;
+			}
+
+			case 'y_wing': {
+				const yWingHint = detectYWing(candidates);
+				if (yWingHint) {
+					hint = yWingHint;
 				}
 				break;
 			}

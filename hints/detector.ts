@@ -885,7 +885,10 @@ function detectXWing(candidates: Candidates): {
  * Detects Chute Remote Pairs - two bi-value cells with same candidates in same chute,
  * where only one candidate appears in the third box, allowing eliminations
  */
-function detectChuteRemotePairs(candidates: Candidates): {
+function detectChuteRemotePairs(
+	candidates: Candidates,
+	values: Values,
+): {
 	digits: [Digit, Digit];
 	remotePairSquares: [Square, Square];
 	chuteType: 'horizontal' | 'vertical';
@@ -981,17 +984,16 @@ function detectChuteRemotePairs(candidates: Candidates): {
 							let digit2InThirdBox = false;
 
 							for (const square of thirdBoxSquares) {
+								// Check candidates
 								if (candidates[square]) {
 									if (candidates[square].has(digit1)) digit1InThirdBox = true;
 									if (candidates[square].has(digit2)) digit2InThirdBox = true;
 								}
-								// Also check placed values
-								const placedDigit = Object.keys(candidates).find(
-									(s) =>
-										s === square && candidates[s] && candidates[s].size === 0,
-								);
-								// For placed values, we need to check the actual values
-								// This is a bit tricky with our current structure, so we'll skip placed values for now
+								// Check placed values
+								if (values[square] && values[square].length === 1) {
+									if (values[square] === digit1) digit1InThirdBox = true;
+									if (values[square] === digit2) digit2InThirdBox = true;
+								}
 							}
 
 							// If only one digit appears in the third box, we can make eliminations
@@ -1071,9 +1073,15 @@ function detectChuteRemotePairs(candidates: Candidates): {
 							let digit2InThirdBox = false;
 
 							for (const square of thirdBoxSquares) {
+								// Check candidates
 								if (candidates[square]) {
 									if (candidates[square].has(digit1)) digit1InThirdBox = true;
 									if (candidates[square].has(digit2)) digit2InThirdBox = true;
+								}
+								// Check placed values
+								if (values[square] && values[square].length === 1) {
+									if (values[square] === digit1) digit1InThirdBox = true;
+									if (values[square] === digit2) digit2InThirdBox = true;
 								}
 							}
 
@@ -1800,7 +1808,7 @@ export function getHint(
 			}
 
 			case 'chute_remote_pairs': {
-				const chuteRemotePairs = detectChuteRemotePairs(candidates);
+				const chuteRemotePairs = detectChuteRemotePairs(candidates, values);
 				if (chuteRemotePairs.length > 0) {
 					// Check each pattern until we find one with eliminations
 					for (let i = 0; i < chuteRemotePairs.length; i++) {

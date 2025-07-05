@@ -30,13 +30,13 @@ export const TECHNIQUE_DIFFICULTIES: Record<string, number> = {
 
 	// Stage 5: Fish and Wings (46-65)
 	x_wing: 46, // First fish - rectangular pattern across grid
-	y_wing: 52, // Pivot + pincers pattern - substantial leap in difficulty
+	y_wing: 50, // Pivot + pincers pattern - substantial leap in difficulty
 	xyz_wing: 58, // Y-wing + extra candidate - much trickier
 	swordfish: 62, // 3x3 fish - major complexity jump from X-wing
 	wxyz_wing: 67, // 4-cell wing pattern - very complex
 
 	// Stage 6: Intermediate Patterns (50-68)
-	chute_remote_pairs: 50, // Remote pair chains across chutes
+	chute_remote_pairs: 52, // Remote pair chains across chutes
 	simple_coloring: 54, // Basic conjugate pair coloring
 	rectangle_elimination: 56, // Basic unique rectangle patterns
 	unique_rectangles: 61, // Advanced rectangle logic

@@ -10,13 +10,20 @@ import {
 	serialize,
 	deserialize,
 } from './core/solver.js';
-import { generate } from './core/generator.js';
+import {
+	generate,
+	generateWithClues,
+	generateWithDifficulty,
+	generateByCategory,
+} from './core/generator.js';
 
 // Hint system
 import {
 	getHint,
 	getTechniqueDifficulty,
 	difficultyToCategory,
+	solvePuzzleWithHints,
+	evaluatePuzzleDifficulty,
 } from './hints/index.js';
 
 // Export all types
@@ -37,6 +44,8 @@ export type {
 	Conflict,
 	SolverOptions,
 	Difficulty,
+	DifficultyCategory,
+	GenerationOptions,
 } from './types.js';
 
 export type {
@@ -61,11 +70,16 @@ export {
 
 	// Puzzle generation
 	generate,
+	generateWithClues,
+	generateWithDifficulty,
+	generateByCategory,
 
 	// Hint system
 	getHint,
 	getTechniqueDifficulty,
 	difficultyToCategory,
+	solvePuzzleWithHints,
+	evaluatePuzzleDifficulty,
 };
 
 // Default export with all functionality for convenient import
@@ -77,9 +91,14 @@ export default {
 	serialize,
 	deserialize,
 	generate,
+	generateWithClues,
+	generateWithDifficulty,
+	generateByCategory,
 	getHint,
 	getTechniqueDifficulty,
 	difficultyToCategory,
+	solvePuzzleWithHints,
+	evaluatePuzzleDifficulty,
 	// Backwards compatibility
 	test: parseGrid,
 };

@@ -52,4 +52,32 @@ export interface SolverOptions {
 	chooseSquare?: 'minDigits' | 'maxDigits' | 'random';
 }
 
-export type Difficulty = 'easy' | 'medium' | 'hard';
+export type Difficulty =
+	| 'trivial'
+	| 'basic'
+	| 'intermediate'
+	| 'tough'
+	| 'diabolical'
+	| 'extreme'
+	| 'master'
+	| 'grandmaster';
+
+// New fine-grained difficulty system (same as Difficulty now)
+export type DifficultyCategory =
+	| 'trivial'
+	| 'basic'
+	| 'intermediate'
+	| 'tough'
+	| 'diabolical'
+	| 'extreme'
+	| 'master'
+	| 'grandmaster';
+
+export interface GenerationOptions {
+	minClues?: number; // Minimum number of starting clues
+	maxClues?: number; // Maximum number of starting clues
+	targetDifficulty?: number; // Target difficulty (1-100)
+	toleranceDifficulty?: number; // How close to target we accept (+/- this amount)
+	maxAttempts?: number; // Maximum generation attempts before giving up
+	allowedCategories?: DifficultyCategory[]; // Restrict to certain categories
+}

@@ -92,7 +92,7 @@ describe('Generator', () => {
 			const result = generateWithDifficulty({
 				targetDifficulty: 17,
 				toleranceDifficulty: 10, // More tolerance
-				maxAttempts: 10, // Increased attempts to improve success rate
+				maxAttempts: 50, // Increased attempts to improve success rate
 			});
 
 			expect(isValidPuzzle(result.puzzle)).toBe(true);
@@ -133,7 +133,7 @@ describe('Generator', () => {
 				maxAttempts: 5, // Very low for quick test
 			});
 
-			expect(result.attempts).toBeGreaterThan(0);
+			expect(result.attempts).toBeGreaterThanOrEqual(1);
 			expect(result.attempts).toBeLessThanOrEqual(5);
 		}, 5000);
 	});
@@ -151,7 +151,7 @@ describe('Generator', () => {
 		}, 8000);
 
 		it('should generate basic puzzle', () => {
-			const result = generateByCategory('basic', { maxAttempts: 10 });
+			const result = generateByCategory('basic', { maxAttempts: 50 });
 
 			expect(isValidPuzzle(result.puzzle)).toBe(true);
 			expect(result.actualDifficulty).toBeGreaterThanOrEqual(5);

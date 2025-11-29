@@ -47,8 +47,9 @@ import { solve } from '../core/solver.js';
 function detectIncorrectValues(
 	puzzle: string | Grid,
 	values: Values,
+	solvedGrid?: Grid,
 ): { square: Square; actualValue: Digit; correctValue: Digit }[] {
-	const solved = solve(puzzle);
+	const solved = solvedGrid || solve(puzzle);
 	if (!solved) {
 		return [];
 	}
@@ -80,8 +81,9 @@ function detectMissingCandidates(
 	puzzle: string | Grid,
 	values: Values,
 	candidates: Candidates,
+	solvedGrid?: Grid,
 ): { square: Square; missingDigit: Digit }[] {
-	const solved = solve(puzzle);
+	const solved = solvedGrid || solve(puzzle);
 	if (!solved) {
 		return [];
 	}
@@ -1487,10 +1489,14 @@ function findHiddenSetEliminations(
 /**
  * Main hint detection function - finds the easiest available hint for the current puzzle state
  */
+/**
+ * Main hint detection function - finds the easiest available hint for the current puzzle state
+ */
 export function getHint(
 	puzzle: string | Grid,
 	values: Values,
 	providedCandidates?: Candidates,
+	solvedGrid?: Grid,
 ): SudokuHint | null {
 	// Use provided candidates or convert values to candidates for advanced techniques
 	const candidates = providedCandidates || valuesToCandidates(values);
@@ -1502,7 +1508,7 @@ export function getHint(
 		// Use switch statement to call appropriate detection function
 		switch (technique) {
 			case 'incorrect_value': {
-				const incorrectValues = detectIncorrectValues(puzzle, values);
+				const incorrectValues = detectIncorrectValues(puzzle, values, solvedGrid);
 				if (incorrectValues.length > 0) {
 					const error = incorrectValues[0];
 					hint = {
@@ -1522,6 +1528,7 @@ export function getHint(
 					puzzle,
 					values,
 					candidates,
+					solvedGrid,
 				);
 				if (missingCandidates.length > 0) {
 					const missing = missingCandidates[0];

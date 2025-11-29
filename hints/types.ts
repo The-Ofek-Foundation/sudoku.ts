@@ -26,10 +26,10 @@ export interface MissingCandidateHint extends HintBase {
 export interface SingleCellHint extends HintBase {
 	type: 'single_cell';
 	technique:
-	| 'last_remaining_in_box'
-	| 'last_remaining_in_row'
-	| 'last_remaining_in_column'
-	| 'naked_single';
+		| 'last_remaining_in_box'
+		| 'last_remaining_in_row'
+		| 'last_remaining_in_column'
+		| 'naked_single';
 	square: Square;
 	digit: Digit;
 	unit?: Unit;

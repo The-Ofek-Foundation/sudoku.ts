@@ -147,7 +147,9 @@ describe('Generator', () => {
 			expect(result.actualDifficulty).toBeLessThanOrEqual(100); // Known issue: Generator often fails to find trivial puzzles
 
 			const evaluation = evaluatePuzzleDifficulty(result.puzzle);
-			expect(['trivial', 'basic', 'intermediate', 'grandmaster']).toContain(evaluation.category); // Accept intermediate as fallback
+			expect(['trivial', 'basic', 'intermediate', 'grandmaster']).toContain(
+				evaluation.category,
+			); // Accept intermediate as fallback
 		}, 8000);
 
 		it('should generate basic puzzle', () => {

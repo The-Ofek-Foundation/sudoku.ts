@@ -37,7 +37,9 @@ describe('Sudoku Integration Tests', () => {
 		const partialValues = sudoku.parseGrid(puzzle) || {};
 		const hint = sudoku.getHint(puzzle, partialValues);
 
-		const isComplete = Object.values(partialValues).every((v) => v.length === 1);
+		const isComplete = Object.values(partialValues).every(
+			(v) => v.length === 1,
+		);
 
 		if (!isComplete) {
 			// If puzzle isn't complete, should get a hint

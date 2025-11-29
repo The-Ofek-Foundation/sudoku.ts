@@ -53,10 +53,10 @@ export function generateWithClues(targetClues: number): Grid {
 	const time = new Date().getTime() - start;
 	debug(
 		'Generated puzzle with ' +
-		keys(generatedGrid).length +
-		' squares in ' +
-		time +
-		'ms',
+			keys(generatedGrid).length +
+			' squares in ' +
+			time +
+			'ms',
 	);
 	return generatedGrid;
 }
@@ -131,7 +131,11 @@ export function generateWithDifficulty(options: GenerationOptions): {
 	}
 
 	let bestPuzzle = { ...currentPuzzle };
-	let bestDifficulty = evaluatePuzzleDifficulty(bestPuzzle, 1000, solvedPuzzle).difficulty;
+	let bestDifficulty = evaluatePuzzleDifficulty(
+		bestPuzzle,
+		1000,
+		solvedPuzzle,
+	).difficulty;
 	let bestCost = Math.abs(bestDifficulty - targetDifficulty);
 
 	// 4. Run the Simulated Annealing process
@@ -152,7 +156,11 @@ export function generateWithDifficulty(options: GenerationOptions): {
 		const currentClueCount = presentClues.length;
 
 		// Decide on a move based on difficulty difference
-		const currentDifficulty = evaluatePuzzleDifficulty(currentPuzzle, 1000, solvedPuzzle).difficulty;
+		const currentDifficulty = evaluatePuzzleDifficulty(
+			currentPuzzle,
+			1000,
+			solvedPuzzle,
+		).difficulty;
 		const diff = currentDifficulty - targetDifficulty;
 
 		// Save state to revert if needed
@@ -164,20 +172,32 @@ export function generateWithDifficulty(options: GenerationOptions): {
 		// Too easy (diff < 0) -> Remove clue (harder)
 		// But must respect limits
 
-		if (diff > toleranceDifficulty && removedClues.length > 0 && currentClueCount < maxClues) {
+		if (
+			diff > toleranceDifficulty &&
+			removedClues.length > 0 &&
+			currentClueCount < maxClues
+		) {
 			moveType = 'add';
-			const clueToAdd = removedClues[Math.floor(Math.random() * removedClues.length)];
+			const clueToAdd =
+				removedClues[Math.floor(Math.random() * removedClues.length)];
 			(currentPuzzle as any)[clueToAdd] = solvedPuzzle[clueToAdd];
-		} else if (diff < -toleranceDifficulty && presentClues.length > 17 && currentClueCount > minClues) {
+		} else if (
+			diff < -toleranceDifficulty &&
+			presentClues.length > 17 &&
+			currentClueCount > minClues
+		) {
 			moveType = 'remove';
-			const clueToRemove = presentClues[Math.floor(Math.random() * presentClues.length)];
+			const clueToRemove =
+				presentClues[Math.floor(Math.random() * presentClues.length)];
 			delete (currentPuzzle as Partial<Grid>)[clueToRemove];
 		} else {
 			// Swap (keep count same)
 			moveType = 'swap';
 			if (presentClues.length > 0 && removedClues.length > 0) {
-				const clueToAdd = removedClues[Math.floor(Math.random() * removedClues.length)];
-				const clueToRemove = presentClues[Math.floor(Math.random() * presentClues.length)];
+				const clueToAdd =
+					removedClues[Math.floor(Math.random() * removedClues.length)];
+				const clueToRemove =
+					presentClues[Math.floor(Math.random() * presentClues.length)];
 				delete (currentPuzzle as Partial<Grid>)[clueToRemove];
 				(currentPuzzle as any)[clueToAdd] = solvedPuzzle[clueToAdd];
 			}
@@ -190,7 +210,11 @@ export function generateWithDifficulty(options: GenerationOptions): {
 		}
 
 		// Evaluate new state
-		const newDifficulty = evaluatePuzzleDifficulty(currentPuzzle, 1000, solvedPuzzle).difficulty;
+		const newDifficulty = evaluatePuzzleDifficulty(
+			currentPuzzle,
+			1000,
+			solvedPuzzle,
+		).difficulty;
 		const newCost = Math.abs(newDifficulty - targetDifficulty);
 		const acceptanceProbability = Math.exp((bestCost - newCost) / temperature);
 
@@ -208,7 +232,11 @@ export function generateWithDifficulty(options: GenerationOptions): {
 		temperature *= coolingRate;
 	}
 
-	const finalDifficulty = evaluatePuzzleDifficulty(bestPuzzle, 1000, solvedPuzzle).difficulty;
+	const finalDifficulty = evaluatePuzzleDifficulty(
+		bestPuzzle,
+		1000,
+		solvedPuzzle,
+	).difficulty;
 	const clueCount = keys(bestPuzzle).length;
 
 	debug(

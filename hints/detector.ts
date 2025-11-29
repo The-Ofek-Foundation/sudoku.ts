@@ -1508,7 +1508,11 @@ export function getHint(
 		// Use switch statement to call appropriate detection function
 		switch (technique) {
 			case 'incorrect_value': {
-				const incorrectValues = detectIncorrectValues(puzzle, values, solvedGrid);
+				const incorrectValues = detectIncorrectValues(
+					puzzle,
+					values,
+					solvedGrid,
+				);
 				if (incorrectValues.length > 0) {
 					const error = incorrectValues[0];
 					hint = {

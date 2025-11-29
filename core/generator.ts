@@ -142,10 +142,11 @@ export function generateWithDifficulty(options: GenerationOptions): {
 	let temperature = 10.0;
 	const coolingRate = 0.99;
 
-	let i = 1;
-	for (; i <= maxAttempts; i++) {
+	let i = 0;
+	for (; i < maxAttempts; i++) {
 		// Stop early if we hit the target
 		if (bestCost <= toleranceDifficulty) {
+			i++;
 			break;
 		}
 

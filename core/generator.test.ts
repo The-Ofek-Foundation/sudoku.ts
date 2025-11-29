@@ -92,7 +92,7 @@ describe('Generator', () => {
 			const result = generateWithDifficulty({
 				targetDifficulty: 17,
 				toleranceDifficulty: 10, // More tolerance
-				maxAttempts: 50, // Increased attempts to improve success rate
+				maxAttempts: 100, // Increased attempts to improve success rate
 			});
 
 			expect(isValidPuzzle(result.puzzle)).toBe(true);

@@ -138,6 +138,6 @@ describe('Chute Remote Pairs Strategy', () => {
 	});
 
 	it('should assign correct difficulty to chute remote pairs', () => {
-		expect(getTechniqueDifficulty('chute_remote_pairs')).toBe(8);
+		expect(getTechniqueDifficulty('chute_remote_pairs')).toBe(52);
 	});
 });

@@ -3,9 +3,9 @@ import {
 	getTechniqueDifficulty,
 	difficultyToCategory,
 	TECHNIQUE_DIFFICULTIES,
+	solvePuzzleWithHints,
+	evaluatePuzzleDifficulty,
 } from './difficulty';
-import { solvePuzzleWithHints } from './solver';
-import { evaluatePuzzleDifficulty } from './evaluation';
 
 describe('Difficulty System', () => {
 	describe('Technique Difficulty Values', () => {
@@ -20,7 +20,7 @@ describe('Difficulty System', () => {
 
 		it('should assign correct difficulty values for advanced techniques', () => {
 			expect(getTechniqueDifficulty('x_wing')).toBe(46);
-			expect(getTechniqueDifficulty('y_wing')).toBe(52);
+			expect(getTechniqueDifficulty('y_wing')).toBe(50);
 			expect(getTechniqueDifficulty('simple_coloring')).toBe(54);
 			expect(getTechniqueDifficulty('swordfish')).toBe(62);
 		});

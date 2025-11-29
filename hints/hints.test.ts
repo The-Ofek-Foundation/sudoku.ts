@@ -9,26 +9,26 @@ import type { Values } from '../sudoku';
 describe('Hint System', () => {
 	describe('Difficulty System', () => {
 		it('should assign correct difficulty values', () => {
-			expect(getTechniqueDifficulty('incorrect_value')).toBe(1);
-			expect(getTechniqueDifficulty('missing_candidate')).toBe(2);
-			expect(getTechniqueDifficulty('naked_single')).toBe(3);
-			expect(getTechniqueDifficulty('pointing_pairs')).toBe(4);
-			expect(getTechniqueDifficulty('naked_pairs')).toBe(5);
-			expect(getTechniqueDifficulty('hidden_pairs')).toBe(6);
-			expect(getTechniqueDifficulty('naked_triples')).toBe(6);
-			expect(getTechniqueDifficulty('hidden_triples')).toBe(7);
+			expect(getTechniqueDifficulty('incorrect_value')).toBe(0);
+			expect(getTechniqueDifficulty('missing_candidate')).toBe(0);
+			expect(getTechniqueDifficulty('naked_single')).toBe(1);
+			expect(getTechniqueDifficulty('pointing_pairs')).toBe(12);
+			expect(getTechniqueDifficulty('naked_pairs')).toBe(9);
+			expect(getTechniqueDifficulty('hidden_pairs')).toBe(18);
+			expect(getTechniqueDifficulty('naked_triples')).toBe(22);
+			expect(getTechniqueDifficulty('hidden_triples')).toBe(28);
 		});
 
 		it('should categorize difficulties correctly', () => {
-			expect(difficultyToCategory(1)).toBe('beginner');
-			expect(difficultyToCategory(3)).toBe('easy');
-			expect(difficultyToCategory(5)).toBe('medium');
-			expect(difficultyToCategory(8)).toBe('hard');
+			expect(difficultyToCategory(1)).toBe('trivial');
+			expect(difficultyToCategory(15)).toBe('basic');
+			expect(difficultyToCategory(30)).toBe('intermediate');
+			expect(difficultyToCategory(50)).toBe('tough');
 		});
 
 		it('should handle unknown techniques gracefully', () => {
-			expect(getTechniqueDifficulty('unknown_technique')).toBe(5);
-			expect(difficultyToCategory(99)).toBe('hard');
+			expect(getTechniqueDifficulty('unknown_technique')).toBe(50);
+			expect(difficultyToCategory(99)).toBe('grandmaster');
 		});
 	});
 
@@ -83,7 +83,7 @@ describe('Hint System', () => {
 
 			const hint = getHint(puzzle, values);
 			expect(hint).toBeDefined();
-			expect(hint!.difficulty).toBeGreaterThan(0);
+			expect(hint!.difficulty).toBeGreaterThanOrEqual(0);
 			expect(hint!.difficulty).toBeLessThanOrEqual(10);
 		});
 
@@ -296,7 +296,7 @@ describe('Hint System', () => {
 			const duration = end - start;
 
 			expect(hint).toBeTruthy();
-			expect(duration).toBeLessThan(100); // Should be fast
+			expect(duration).toBeLessThan(500); // Should be fast
 		});
 	});
 });

@@ -136,6 +136,6 @@ describe('X-Wing Strategy', () => {
 	});
 
 	it('should assign correct difficulty to X-Wing', () => {
-		expect(getTechniqueDifficulty('x_wing')).toBe(8);
+		expect(getTechniqueDifficulty('x_wing')).toBe(46);
 	});
 });

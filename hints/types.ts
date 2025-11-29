@@ -5,7 +5,7 @@ import type { Square, Digit, Unit } from '../types.js';
 // Comprehensive hint system types
 export interface HintBase {
 	technique: string;
-	difficulty: number; // Numeric difficulty (1-10 scale)
+	difficulty: number; // Numeric difficulty (0-100 scale)
 }
 
 export interface ErrorHint extends HintBase {
@@ -26,10 +26,10 @@ export interface MissingCandidateHint extends HintBase {
 export interface SingleCellHint extends HintBase {
 	type: 'single_cell';
 	technique:
-		| 'last_remaining_in_box'
-		| 'last_remaining_in_row'
-		| 'last_remaining_in_column'
-		| 'naked_single';
+	| 'last_remaining_in_box'
+	| 'last_remaining_in_row'
+	| 'last_remaining_in_column'
+	| 'naked_single';
 	square: Square;
 	digit: Digit;
 	unit?: Unit;

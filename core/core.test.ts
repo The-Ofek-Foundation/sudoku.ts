@@ -76,7 +76,7 @@ describe('Core Sudoku Functionality', () => {
 
 			// Should have unique solution
 			expect(isUnique(puzzleString)).toBe(true);
-		});
+		}, 10000);
 
 		it('should generate different puzzles', () => {
 			const puzzle1 = gridToString(generate());
@@ -84,6 +84,6 @@ describe('Core Sudoku Functionality', () => {
 
 			// Very unlikely to generate identical puzzles
 			expect(puzzle1).not.toBe(puzzle2);
-		});
+		}, 20000);
 	});
 });

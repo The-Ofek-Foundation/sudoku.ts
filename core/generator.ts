@@ -164,7 +164,7 @@ export function generateWithDifficulty(options: GenerationOptions): {
 		if (Math.abs(currentDiff - targetDifficulty) <= toleranceDifficulty) {
 			const endTime = Date.now();
 			console.log(
-				`Generated puzzle with difficulty ${currentDiff} (target: ${targetDifficulty} ±${toleranceDifficulty}) in ${endTime - startTime}ms.`,
+				`Generated puzzle with difficulty ${currentDiff} (target: ${targetDifficulty} ±${toleranceDifficulty}) in ${endTime - startTime} ms.`,
 			);
 			return {
 				puzzle: currentPuzzle,
@@ -231,9 +231,9 @@ export function generateWithDifficulty(options: GenerationOptions): {
 						solvedPuzzle[bestEscape.clue];
 					currentDiff = bestEscape.diff;
 					moveMade = true;
-					lastMove = `add:${bestEscape.clue}`;
+					lastMove = `add:${bestEscape.clue} `;
 					console.log(
-						`Round ${round} Step ${step}: Escaped Dark Zone Add ${bestEscape.clue} -> Diff ${bestEscape.diff}`,
+						`Round ${round} Step ${step}: Escaped Dark Zone Add ${bestEscape.clue} -> Diff ${bestEscape.diff} `,
 					);
 				} else {
 					// No escape found in sample, just pick random one to progress
@@ -251,9 +251,9 @@ export function generateWithDifficulty(options: GenerationOptions): {
 							solvedPuzzle,
 						).difficulty; // Pass solvedPuzzle
 						moveMade = true;
-						lastMove = `add:${clue}`;
+						lastMove = `add:${clue} `;
 						console.log(
-							`Round ${round} Step ${step}: Blind Add ${clue} -> Diff ${currentDiff}`,
+							`Round ${round} Step ${step}: Blind Add ${clue} -> Diff ${currentDiff} `,
 						);
 					}
 				}
@@ -292,9 +292,9 @@ export function generateWithDifficulty(options: GenerationOptions): {
 					(currentPuzzle as any)[bestMove.clue] = solvedPuzzle[bestMove.clue];
 					currentDiff = bestMove.diff;
 					moveMade = true;
-					lastMove = `add:${bestMove.clue}`;
+					lastMove = `add:${bestMove.clue} `;
 					console.log(
-						`Round ${round} Step ${step}: Added ${bestMove.clue} -> Diff ${bestMove.diff}`,
+						`Round ${round} Step ${step}: Added ${bestMove.clue} -> Diff ${bestMove.diff} `,
 					);
 				}
 			} else if (diff < -toleranceDifficulty) {
@@ -422,9 +422,9 @@ export function generateWithDifficulty(options: GenerationOptions): {
 						delete (currentPuzzle as Partial<Grid>)[bestMove.remove];
 						currentDiff = bestMove.diff;
 						moveMade = true;
-						lastMove = `remove:${bestMove.remove}`;
+						lastMove = `remove:${bestMove.remove} `;
 						console.log(
-							`Round ${round} Step ${step}: Removed ${bestMove.remove} -> Diff ${bestMove.diff}`,
+							`Round ${round} Step ${step}: Removed ${bestMove.remove} -> Diff ${bestMove.diff} `,
 						);
 					} else {
 						delete (currentPuzzle as Partial<Grid>)[bestMove.remove];

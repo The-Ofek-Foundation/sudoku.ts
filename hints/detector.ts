@@ -47,8 +47,9 @@ import { solve } from '../core/solver.js';
 function detectIncorrectValues(
 	puzzle: string | Grid,
 	values: Values,
+	solvedGrid?: Grid, // Add solvedGrid parameter
 ): { square: Square; actualValue: Digit; correctValue: Digit }[] {
-	const solved = solve(puzzle);
+	const solved = solvedGrid || solve(puzzle); // Use provided grid or solve
 	if (!solved) {
 		return [];
 	}
@@ -80,8 +81,9 @@ function detectMissingCandidates(
 	puzzle: string | Grid,
 	values: Values,
 	candidates: Candidates,
+	solvedGrid?: Grid, // Add solvedGrid parameter
 ): { square: Square; missingDigit: Digit }[] {
-	const solved = solve(puzzle);
+	const solved = solvedGrid || solve(puzzle); // Use provided grid or solve
 	if (!solved) {
 		return [];
 	}
@@ -1490,52 +1492,52 @@ function findHiddenSetEliminations(
 export function getHint(
 	puzzle: string | Grid,
 	values: Values,
-	providedCandidates?: Candidates,
+	candidates: Candidates,
+	maxDifficulty?: number,
+	solved?: Grid, // Add solved parameter
 ): SudokuHint | null {
-	// Use provided candidates or convert values to candidates for advanced techniques
-	const candidates = providedCandidates || valuesToCandidates(values);
+	// Check for errors first (highest priority)
+	const incorrectValues = detectIncorrectValues(puzzle, values, solved);
+	if (incorrectValues.length > 0) {
+		const error = incorrectValues[0];
+		return {
+			type: 'error',
+			technique: 'incorrect_value',
+			difficulty: getTechniqueDifficulty('incorrect_value'),
+			square: error.square,
+			actualValue: error.actualValue,
+			correctValue: error.correctValue,
+		};
+	}
 
-	// Iterate through techniques in order of difficulty (easiest first)
+
+
+	const missingCandidates = detectMissingCandidates(puzzle, values, candidates, solved);
+	if (missingCandidates.length > 0) {
+		const missing = missingCandidates[0];
+		return {
+			type: 'missing_candidate',
+			technique: 'missing_candidate',
+			difficulty: getTechniqueDifficulty('missing_candidate'),
+			square: missing.square,
+			missingDigit: missing.missingDigit,
+		};
+	}
+
+	// Iterate through all techniques in order of difficulty
 	for (const technique of SORTED_TECHNIQUES) {
+		// If we have a max difficulty and this technique exceeds it, stop checking
+		if (
+			maxDifficulty !== undefined &&
+			getTechniqueDifficulty(technique) > maxDifficulty
+		) {
+			break;
+		}
+
 		let hint: SudokuHint | null = null;
 
 		// Use switch statement to call appropriate detection function
 		switch (technique) {
-			case 'incorrect_value': {
-				const incorrectValues = detectIncorrectValues(puzzle, values);
-				if (incorrectValues.length > 0) {
-					const error = incorrectValues[0];
-					hint = {
-						type: 'error',
-						technique: 'incorrect_value',
-						difficulty: getTechniqueDifficulty('incorrect_value'),
-						square: error.square,
-						actualValue: error.actualValue,
-						correctValue: error.correctValue,
-					};
-				}
-				break;
-			}
-
-			case 'missing_candidate': {
-				const missingCandidates = detectMissingCandidates(
-					puzzle,
-					values,
-					candidates,
-				);
-				if (missingCandidates.length > 0) {
-					const missing = missingCandidates[0];
-					hint = {
-						type: 'missing_candidate',
-						technique: 'missing_candidate',
-						difficulty: getTechniqueDifficulty('missing_candidate'),
-						square: missing.square,
-						missingDigit: missing.missingDigit,
-					};
-				}
-				break;
-			}
-
 			case 'last_remaining_in_box':
 			case 'last_remaining_in_row':
 			case 'last_remaining_in_column': {

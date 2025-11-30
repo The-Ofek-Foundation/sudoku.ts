@@ -80,4 +80,5 @@ export interface GenerationOptions {
 	toleranceDifficulty?: number; // How close to target we accept (+/- this amount)
 	maxAttempts?: number; // Maximum generation attempts before giving up
 	allowedCategories?: DifficultyCategory[]; // Restrict to certain categories
+	startPuzzle?: Grid;
 }

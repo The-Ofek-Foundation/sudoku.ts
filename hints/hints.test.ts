@@ -3,6 +3,7 @@ import {
 	getHint,
 	getTechniqueDifficulty,
 	difficultyToCategory,
+	valuesToCandidates,
 } from '../sudoku';
 import type { Values } from '../sudoku';
 
@@ -49,7 +50,8 @@ describe('Hint System', () => {
 				A9: '9',
 			};
 
-			const hint = getHint(puzzle, values);
+			const candidates = valuesToCandidates(values);
+			const hint = getHint(puzzle, values, candidates);
 			expect(hint).toBeDefined();
 			expect(hint!.type).toBe('error');
 			expect(hint!.technique).toBe('incorrect_value');
@@ -81,7 +83,8 @@ describe('Hint System', () => {
 				I8: '4',
 			};
 
-			const hint = getHint(puzzle, values);
+			const candidates = valuesToCandidates(values);
+			const hint = getHint(puzzle, values, candidates);
 			expect(hint).toBeDefined();
 			expect(hint!.difficulty).toBeGreaterThanOrEqual(0);
 			expect(hint!.difficulty).toBeLessThanOrEqual(10);
@@ -175,7 +178,8 @@ describe('Hint System', () => {
 				I9: '8',
 			};
 
-			const hint = getHint(puzzle, values);
+			const candidates = valuesToCandidates(values);
+			const hint = getHint(puzzle, values, candidates);
 			expect(hint).toBeDefined();
 			expect(hint!.type).toBe('single_cell');
 			expect(hint!.difficulty).toBeLessThanOrEqual(4); // Should be a simple technique
@@ -268,7 +272,8 @@ describe('Hint System', () => {
 				I9: '8',
 			};
 
-			const hint = getHint(puzzle, values);
+			const candidates = valuesToCandidates(values);
+			const hint = getHint(puzzle, values, candidates);
 			expect(hint).toBeNull();
 		});
 	});
@@ -291,7 +296,8 @@ describe('Hint System', () => {
 			}
 
 			const start = performance.now();
-			const hint = getHint(puzzle, values);
+			const candidates = valuesToCandidates(values);
+			const hint = getHint(puzzle, values, candidates);
 			const end = performance.now();
 			const duration = end - start;
 

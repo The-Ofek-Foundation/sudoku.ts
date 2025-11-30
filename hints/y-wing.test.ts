@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { getHint } from './detector.js';
+import { getHint, valuesToCandidates } from './detector.js';
 
 describe('Y-Wing Detection', () => {
 	it('should detect Y-Wing patterns', () => {
@@ -22,7 +22,8 @@ describe('Y-Wing Detection', () => {
 			// This would need to be a specific puzzle configuration
 		};
 
-		const hint = getHint(testPuzzle, values);
+		const candidates = valuesToCandidates(values);
+		const hint = getHint(testPuzzle, values, candidates);
 
 		// For now, just check that the function doesn't crash and returns appropriate types
 		expect(hint).toBeDefined();
@@ -55,7 +56,8 @@ describe('Y-Wing Detection', () => {
 
 		const values = {};
 
-		const hint = getHint(simplePuzzle, values);
+		const candidates = valuesToCandidates(values);
+		const hint = getHint(simplePuzzle, values, candidates);
 
 		// Should not find Y-Wing on a solved puzzle
 		expect(hint?.type).not.toBe('y_wing');
@@ -77,7 +79,8 @@ describe('Y-Wing Detection', () => {
 
 		const values = {};
 
-		const hint = getHint(puzzleWithEasierHints, values);
+		const candidates = valuesToCandidates(values);
+		const hint = getHint(puzzleWithEasierHints, values, candidates);
 
 		// Should find an easier technique before Y-Wing
 		if (hint) {

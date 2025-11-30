@@ -69,7 +69,7 @@ export function generate(difficulty?: Difficulty): Grid {
 	const category = difficulty || 'basic';
 	// Use more attempts for the main generator and allow more tolerance
 	const result = generateByCategory(category, {
-		maxAttempts: 500,
+		maxAttempts: 5000,
 		toleranceDifficulty: category === 'intermediate' ? 15 : 10,
 	});
 	return result.puzzle;
@@ -89,165 +89,401 @@ export function setDebugMode(enabled: boolean): void {
 export function generateWithDifficulty(options: GenerationOptions): {
 	puzzle: Grid;
 	actualDifficulty: number;
-	attempts: number;
+	attempts: number; // Represents the number of annealing rounds
 	clues: number;
 } {
 	const {
 		targetDifficulty = 50,
-		toleranceDifficulty = 3,
-		maxAttempts = 100,
-		minClues = 17,
-		maxClues = 81,
+		toleranceDifficulty = 3, // How close to get before stopping
+		maxAttempts = 5000, // Max annealing rounds
+		startPuzzle,
 	} = options;
 
-	// 1. Start with a fully solved board
-	const solvedPuzzle = solve({});
-	if (!solvedPuzzle) {
-		throw new Error('Failed to generate a solved puzzle to begin.');
-	}
+	const startTime = Date.now();
 
-	// 2. Determine initial clue count based on target difficulty
-	// Ensure it's within bounds
-	let estimatedClues = Math.max(
-		22,
-		Math.min(50, Math.floor(50 - (targetDifficulty / 100) * 28)),
-	);
-	estimatedClues = Math.max(minClues, Math.min(maxClues, estimatedClues));
+	let bestGlobalPuzzle: Grid | null = null;
+	let bestGlobalCost = Infinity;
+	let bestGlobalDiff = 0;
+	let totalIterations = 0;
 
-	// 3. Create initial puzzle
-	let currentPuzzle = { ...solvedPuzzle };
-	const allKeys = shuffle(keys(solvedPuzzle));
+	// Multi-Start Strategy:
+	// If we get stuck with a specific minimal puzzle configuration, it's often better
+	// to restart with a fresh minimal puzzle than to keep annealing a bad one.
+	// We divide maxAttempts into "rounds".
+	const attemptsPerRound = 100;
+	const maxRounds = Math.ceil(maxAttempts / attemptsPerRound);
 
-	// Remove clues until we reach estimated count
-	for (const key of allKeys) {
-		if (keys(currentPuzzle).length <= estimatedClues) break;
+	for (let round = 0; round < maxRounds; round++) {
+		let solvedPuzzle: Grid; // This will hold the full solved grid
+		let currentPuzzle: Grid; // This will hold the puzzle being worked on (with removed clues)
 
-		const temp = currentPuzzle[key];
-		delete (currentPuzzle as Partial<Grid>)[key];
-
-		if (!isUnique(currentPuzzle)) {
-			(currentPuzzle as any)[key] = temp;
-		}
-	}
-
-	let bestPuzzle = { ...currentPuzzle };
-	let bestDifficulty = evaluatePuzzleDifficulty(
-		bestPuzzle,
-		1000,
-		solvedPuzzle,
-	).difficulty;
-	let bestCost = Math.abs(bestDifficulty - targetDifficulty);
-
-	// 4. Run the Simulated Annealing process
-	let temperature = 10.0;
-	const coolingRate = 0.99;
-
-	let i = 0;
-	for (; i < maxAttempts; i++) {
-		// Stop early if we hit the target
-		if (bestCost <= toleranceDifficulty) {
-			i++;
-			break;
-		}
-
-		const presentClues = keys(currentPuzzle);
-		const removedClues = keys(solvedPuzzle).filter(
-			(k) => !presentClues.includes(k),
-		);
-		const currentClueCount = presentClues.length;
-
-		// Decide on a move based on difficulty difference
-		const currentDifficulty = evaluatePuzzleDifficulty(
-			currentPuzzle,
-			1000,
-			solvedPuzzle,
-		).difficulty;
-		const diff = currentDifficulty - targetDifficulty;
-
-		// Save state to revert if needed
-		const previousPuzzle = { ...currentPuzzle };
-		let moveType = 'swap';
-
-		// Logic:
-		// Too hard (diff > 0) -> Add clue (easier)
-		// Too easy (diff < 0) -> Remove clue (harder)
-		// But must respect limits
-
-		if (
-			diff > toleranceDifficulty &&
-			removedClues.length > 0 &&
-			currentClueCount < maxClues
-		) {
-			moveType = 'add';
-			const clueToAdd =
-				removedClues[Math.floor(Math.random() * removedClues.length)];
-			(currentPuzzle as any)[clueToAdd] = solvedPuzzle[clueToAdd];
-		} else if (
-			diff < -toleranceDifficulty &&
-			presentClues.length > 17 &&
-			currentClueCount > minClues
-		) {
-			moveType = 'remove';
-			const clueToRemove =
-				presentClues[Math.floor(Math.random() * presentClues.length)];
-			delete (currentPuzzle as Partial<Grid>)[clueToRemove];
+		if (startPuzzle) {
+			currentPuzzle = { ...startPuzzle };
+			const result = solve(currentPuzzle);
+			if (!result) throw new Error('Failed to solve the provided startPuzzle.');
+			solvedPuzzle = result;
 		} else {
-			// Swap (keep count same)
-			moveType = 'swap';
-			if (presentClues.length > 0 && removedClues.length > 0) {
-				const clueToAdd =
-					removedClues[Math.floor(Math.random() * removedClues.length)];
-				const clueToRemove =
-					presentClues[Math.floor(Math.random() * presentClues.length)];
-				delete (currentPuzzle as Partial<Grid>)[clueToRemove];
-				(currentPuzzle as any)[clueToAdd] = solvedPuzzle[clueToAdd];
+			// Smart Start logic
+			let startClues = 24; // Start HARD (Tough/Diabolical range)
+			if (targetDifficulty < 20) startClues = 35; // Basic
+			if (targetDifficulty > 70) startClues = 20; // Extreme
+
+			try {
+				currentPuzzle = generateWithClues(startClues);
+				const result = solve(currentPuzzle);
+				if (!result) throw new Error('Failed to solve generated puzzle');
+				solvedPuzzle = result;
+			} catch (e) {
+				// Fallback: Generate Full Grid first
+				const result = solve({});
+				if (!result)
+					throw new Error('Failed to generate a base solved puzzle.');
+				solvedPuzzle = result;
+
+				// Start currentPuzzle as a copy of the solved one, then remove some clues
+				currentPuzzle = { ...solvedPuzzle };
+				const squares = shuffle(keys(currentPuzzle));
+				for (const square of squares) {
+					const value = currentPuzzle[square];
+					delete (currentPuzzle as Partial<Grid>)[square];
+					if (!isUnique(currentPuzzle)) {
+						(currentPuzzle as any)[square] = value;
+					}
+				}
 			}
 		}
 
-		// Check validity (must be unique)
-		if (!isUnique(currentPuzzle)) {
-			currentPuzzle = previousPuzzle;
-			continue;
-		}
-
-		// Evaluate new state
-		const newDifficulty = evaluatePuzzleDifficulty(
+		let currentDiff = evaluatePuzzleDifficulty(
 			currentPuzzle,
 			1000,
+			110,
 			solvedPuzzle,
 		).difficulty;
-		const newCost = Math.abs(newDifficulty - targetDifficulty);
-		const acceptanceProbability = Math.exp((bestCost - newCost) / temperature);
 
-		if (newCost < bestCost) {
-			bestCost = newCost;
-			bestDifficulty = newDifficulty;
-			bestPuzzle = { ...currentPuzzle };
-		} else if (Math.random() < acceptanceProbability) {
-			// Accept
-		} else {
-			// Reject
-			currentPuzzle = previousPuzzle;
+		// If we are already good, return
+		if (Math.abs(currentDiff - targetDifficulty) <= toleranceDifficulty) {
+			const endTime = Date.now();
+			console.log(
+				`Generated puzzle with difficulty ${currentDiff} (target: ${targetDifficulty} ±${toleranceDifficulty}) in ${endTime - startTime}ms.`,
+			);
+			return {
+				puzzle: currentPuzzle,
+				actualDifficulty: currentDiff,
+				attempts: round + 1,
+				clues: keys(currentPuzzle).length,
+			};
 		}
 
-		temperature *= coolingRate;
+		// Bidirectional Greedy Strategy:
+		// Navigate the difficulty landscape by Adding or Removing clues as needed.
+		// - If Diff > Target: Add clues (Randomly if Diff >= 99).
+		// - If Diff < Target: Remove clues (or Swap if blocked).
+
+		let lastMove: string | null = null;
+
+		for (let step = 0; step < 50; step++) {
+			totalIterations++;
+			const presentClues = shuffle(keys(currentPuzzle));
+			const removedClues = keys(solvedPuzzle).filter(
+				(k) => !presentClues.includes(k),
+			);
+
+			let moveMade = false;
+			const diff = currentDiff - targetDifficulty;
+
+			if (currentDiff >= 99) {
+				// Dark Zone: The puzzle is too hard (unsolvable by our logic).
+				// We need to ADD clues to make it solvable.
+				// Goal: Find a clue that makes it solvable (Diff < 99) but keeps it HARD (highest Diff).
+
+				let bestEscape: { clue: string; diff: number } | null = null;
+
+				// Check ALL candidates
+				let candidates = shuffle(removedClues);
+				// Filter tabu
+				if (lastMove && lastMove.startsWith('remove:')) {
+					const tabuClue = lastMove.split(':')[1];
+					candidates = candidates.filter((c) => c !== tabuClue);
+				}
+
+				for (const clue of candidates) {
+					(currentPuzzle as any)[clue] = solvedPuzzle[clue];
+					const d = evaluatePuzzleDifficulty(
+						currentPuzzle,
+						1000,
+						110,
+						solvedPuzzle,
+					).difficulty; // Pass solvedPuzzle
+					delete (currentPuzzle as Partial<Grid>)[clue];
+
+					if (d < 99) {
+						// Found a solvable path!
+						// Prefer the one that is HARDEST (closest to 99 from below)
+						// to avoid dropping straight to Basic.
+						if (!bestEscape || d > bestEscape.diff) {
+							bestEscape = { clue, diff: d };
+						}
+					}
+				}
+
+				if (bestEscape) {
+					(currentPuzzle as any)[bestEscape.clue] =
+						solvedPuzzle[bestEscape.clue];
+					currentDiff = bestEscape.diff;
+					moveMade = true;
+					lastMove = `add:${bestEscape.clue}`;
+					console.log(
+						`Round ${round} Step ${step}: Escaped Dark Zone Add ${bestEscape.clue} -> Diff ${bestEscape.diff}`,
+					);
+				} else {
+					// No escape found in sample, just pick random one to progress
+					if (removedClues.length > 0) {
+						let clue =
+							removedClues[Math.floor(Math.random() * removedClues.length)];
+						// Avoid tabu if possible (Simplified: just ignore for blind add to avoid lint issues)
+						// if (lastMove && lastMove.startsWith('remove:') && removedClues.length > 1) { ... }
+
+						(currentPuzzle as any)[clue] = solvedPuzzle[clue];
+						currentDiff = evaluatePuzzleDifficulty(
+							currentPuzzle,
+							1000,
+							110,
+							solvedPuzzle,
+						).difficulty; // Pass solvedPuzzle
+						moveMade = true;
+						lastMove = `add:${clue}`;
+						console.log(
+							`Round ${round} Step ${step}: Blind Add ${clue} -> Diff ${currentDiff}`,
+						);
+					}
+				}
+			} else if (diff > toleranceDifficulty) {
+				// Too Hard: ADD clues (Greedy)
+				// Find best clue to add
+				let bestMove: { clue: string; diff: number; cost: number } | null =
+					null;
+				let candidates =
+					removedClues.length > 20
+						? shuffle(removedClues).slice(0, 20)
+						: removedClues;
+				// Filter tabu
+				if (lastMove && lastMove.startsWith('remove:')) {
+					const tabuClue = lastMove.split(':')[1];
+					candidates = candidates.filter((c) => c !== tabuClue);
+				}
+
+				for (const clue of candidates) {
+					(currentPuzzle as any)[clue] = solvedPuzzle[clue];
+					const d = evaluatePuzzleDifficulty(
+						currentPuzzle,
+						1000,
+						currentDiff + 10,
+						solvedPuzzle,
+					).difficulty; // Pass solvedPuzzle
+					const c = Math.abs(d - targetDifficulty);
+					delete (currentPuzzle as Partial<Grid>)[clue];
+
+					if (!bestMove || c < bestMove.cost) {
+						bestMove = { clue, diff: d, cost: c };
+					}
+				}
+
+				if (bestMove) {
+					(currentPuzzle as any)[bestMove.clue] = solvedPuzzle[bestMove.clue];
+					currentDiff = bestMove.diff;
+					moveMade = true;
+					lastMove = `add:${bestMove.clue}`;
+					console.log(
+						`Round ${round} Step ${step}: Added ${bestMove.clue} -> Diff ${bestMove.diff}`,
+					);
+				}
+			} else if (diff < -toleranceDifficulty) {
+				// Too Easy: REMOVE clues (Greedy)
+				// Goal: Increase difficulty towards target.
+				// Priority 1: Move to [currentDiff, target + tolerance + 10] (Safe Climb)
+				// Priority 2: Move to [currentDiff, 110] (Dark Zone Jump)
+
+				let bestMove: {
+					type: 'remove' | 'swap';
+					remove: string;
+					add?: string;
+					diff: number;
+				} | null = null;
+
+				// 1. Check Removals
+				for (const clue of presentClues) {
+					// Filter tabu
+					if (
+						lastMove &&
+						lastMove.startsWith('add:') &&
+						lastMove.split(':')[1] === clue
+					)
+						continue;
+
+					const value = currentPuzzle[clue];
+					delete (currentPuzzle as Partial<Grid>)[clue];
+
+					if (isUnique(currentPuzzle)) {
+						const d = evaluatePuzzleDifficulty(
+							currentPuzzle,
+							1000,
+							110,
+						).difficulty;
+
+						// If d > currentDiff, it's an improvement (climb).
+						if (d > currentDiff || d === currentDiff) {
+							// Check if it's a Safe Climb
+							const isSafe = d <= targetDifficulty + toleranceDifficulty + 10;
+
+							if (isSafe) {
+								// Found a safe climb! Take it immediately (First Improvement)
+								bestMove = { type: 'remove', remove: clue, diff: d };
+								break;
+							}
+
+							// Otherwise, it's a Dark Zone jump. Keep as backup.
+							if (!bestMove) {
+								bestMove = { type: 'remove', remove: clue, diff: d };
+							}
+						}
+					}
+					// Restore
+					(currentPuzzle as any)[clue] = value;
+				}
+
+				// If no Safe Removal found, check Swaps
+				if (
+					!bestMove ||
+					bestMove.diff > targetDifficulty + toleranceDifficulty + 10
+				) {
+					// Try 50 swaps
+					for (let k = 0; k < 50; k++) {
+						const clueToRemove =
+							presentClues[Math.floor(Math.random() * presentClues.length)];
+						const clueToAdd =
+							removedClues[Math.floor(Math.random() * removedClues.length)];
+
+						// Filter tabu (simple check: don't remove what we just added)
+						if (
+							lastMove &&
+							lastMove.startsWith('add:') &&
+							lastMove.split(':')[1] === clueToRemove
+						)
+							continue;
+
+						const valueToRemove = currentPuzzle[clueToRemove];
+
+						delete (currentPuzzle as Partial<Grid>)[clueToRemove];
+						(currentPuzzle as any)[clueToAdd] = solvedPuzzle[clueToAdd];
+
+						if (isUnique(currentPuzzle)) {
+							const d = evaluatePuzzleDifficulty(
+								currentPuzzle,
+								1000,
+								110,
+							).difficulty;
+
+							if (d > currentDiff) {
+								const isSafe = d <= targetDifficulty + toleranceDifficulty + 10;
+
+								if (isSafe) {
+									// Found a safe swap! Prefer this over Dark Zone Removal.
+									bestMove = {
+										type: 'swap',
+										remove: clueToRemove,
+										add: clueToAdd,
+										diff: d,
+									};
+									break; // Take first safe swap
+								}
+
+								// Backup: Dark Zone Swap (only if we don't have a Dark Zone Removal already?)
+								// Actually, maybe Swap to Dark Zone is better than Removal to Dark Zone?
+								// Let's just keep track of best move overall if no safe move found.
+								if (!bestMove) {
+									bestMove = {
+										type: 'swap',
+										remove: clueToRemove,
+										add: clueToAdd,
+										diff: d,
+									};
+								}
+							}
+						}
+						// Revert
+						delete (currentPuzzle as Partial<Grid>)[clueToAdd];
+						(currentPuzzle as any)[clueToRemove] = valueToRemove;
+					}
+				}
+
+				// Apply Best Move
+				if (bestMove) {
+					if (bestMove.type === 'remove') {
+						delete (currentPuzzle as Partial<Grid>)[bestMove.remove];
+						currentDiff = bestMove.diff;
+						moveMade = true;
+						lastMove = `remove:${bestMove.remove}`;
+						console.log(
+							`Round ${round} Step ${step}: Removed ${bestMove.remove} -> Diff ${bestMove.diff}`,
+						);
+					} else {
+						delete (currentPuzzle as Partial<Grid>)[bestMove.remove];
+						(currentPuzzle as any)[bestMove.add!] = solvedPuzzle[bestMove.add!];
+						currentDiff = bestMove.diff;
+						moveMade = true;
+						lastMove = `swap:${bestMove.remove}/${bestMove.add}`;
+						console.log(
+							`Round ${round} Step ${step}: Swapped ${bestMove.remove}/${bestMove.add} -> Diff ${bestMove.diff}`,
+						);
+					}
+				}
+			}
+
+			// Check if done
+			if (Math.abs(currentDiff - targetDifficulty) <= toleranceDifficulty) {
+				const endTime = Date.now();
+				console.log(
+					`Generated puzzle with difficulty ${currentDiff} (target: ${targetDifficulty} ±${toleranceDifficulty}) in ${endTime - startTime}ms.`,
+				);
+				return {
+					puzzle: currentPuzzle,
+					actualDifficulty: currentDiff,
+					attempts: round + 1,
+					clues: keys(currentPuzzle).length,
+				};
+			}
+
+			if (!moveMade) {
+				console.log(`Round ${round}: Stuck at Step ${step}. Restarting.`);
+				break;
+			}
+		}
+
+		// If we failed this round, track best result
+		const cost = Math.abs(currentDiff - targetDifficulty);
+		if (cost < bestGlobalCost) {
+			bestGlobalCost = cost;
+			bestGlobalDiff = currentDiff;
+			bestGlobalPuzzle = { ...currentPuzzle };
+		}
 	}
 
-	const finalDifficulty = evaluatePuzzleDifficulty(
-		bestPuzzle,
-		1000,
-		solvedPuzzle,
-	).difficulty;
-	const clueCount = keys(bestPuzzle).length;
+	// Return best found
+	const finalPuzzle = bestGlobalPuzzle || solve({}) || {};
+	const finalDifficulty = bestGlobalDiff;
+	const clueCount = keys(finalPuzzle as Grid).length;
 
-	debug(
-		`Generated puzzle with difficulty ${finalDifficulty} (target: ${targetDifficulty} ±${toleranceDifficulty}) after ${i} iterations.`,
+	const endTime = Date.now();
+	const duration = endTime - startTime;
+
+	console.log(
+		`Generated puzzle with difficulty ${finalDifficulty} (target: ${targetDifficulty} ±${toleranceDifficulty}) after ${totalIterations} iterations in ${duration}ms.`,
 	);
 
 	return {
-		puzzle: bestPuzzle,
+		puzzle: finalPuzzle as Grid,
 		actualDifficulty: finalDifficulty,
-		attempts: i,
+		attempts: maxAttempts,
 		clues: clueCount,
 	};
 }
@@ -274,10 +510,10 @@ export function generateByCategory(
 } {
 	// Map categories to difficulty ranges (midpoint of each range)
 	const categoryTargets = {
-		trivial: { target: 4, tolerance: 4 }, // 1-8
-		basic: { target: 17, tolerance: 8 }, // 9-25
-		intermediate: { target: 35.5, tolerance: 9.5 }, // 26-45
-		tough: { target: 56, tolerance: 12 }, // 46-68
+		trivial: { target: 4, tolerance: 4, minClues: 32, maxClues: 45 }, // 1-8
+		basic: { target: 17, tolerance: 8, minClues: 24, maxClues: 32 }, // 9-25
+		intermediate: { target: 35.5, tolerance: 9.5, minClues: 22, maxClues: 28 }, // 26-45
+		tough: { target: 56, tolerance: 12, minClues: 18, maxClues: 24 }, // 46-68
 		diabolical: { target: 76, tolerance: 8 }, // 69-84
 		extreme: { target: 88, tolerance: 4 }, // 85-92
 		master: { target: 94, tolerance: 2 }, // 93-96
@@ -285,6 +521,47 @@ export function generateByCategory(
 	};
 
 	const config = categoryTargets[category];
+
+	// Optimization: For easier categories, try to generate by clue count first
+	// This is much faster than the annealing process
+	if (['trivial', 'basic', 'intermediate'].includes(category)) {
+		const fastConfig = config as typeof config & {
+			minClues: number;
+			maxClues: number;
+		};
+		const maxFastAttempts = 20; // Reverted to 20
+
+		for (let i = 0; i < maxFastAttempts; i++) {
+			try {
+				// Pick a random clue count in the range
+				const targetClues =
+					Math.floor(
+						Math.random() * (fastConfig.maxClues - fastConfig.minClues + 1),
+					) + fastConfig.minClues;
+
+				// Pass maxDifficulty to fail fast if it's way too hard (e.g. requires Nishio)
+				// We cap at target + tolerance + buffer. If it exceeds this, we know it's too hard.
+				const fastMaxDiff = config.target + config.tolerance + 10;
+				const puzzle = generateWithClues(targetClues);
+				let evaluation = evaluatePuzzleDifficulty(puzzle, 1000, fastMaxDiff);
+
+				// If it matches target, return
+				if (
+					Math.abs(evaluation.difficulty - config.target) <= config.tolerance
+				) {
+					return {
+						puzzle,
+						actualDifficulty: evaluation.difficulty,
+						attempts: i + 1,
+						clues: keys(puzzle).length,
+					};
+				}
+			} catch (e) {
+				// Ignore errors and retry
+			}
+		}
+		// If fast generation fails, fall back to the robust method
+	}
 
 	return generateWithDifficulty({
 		targetDifficulty: config.target,

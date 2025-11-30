@@ -25,4 +25,4 @@ export type {
 } from './types.js';
 
 // Hint detection functions
-export { getHint } from './detector.js';
+export { getHint, valuesToCandidates } from './detector.js';

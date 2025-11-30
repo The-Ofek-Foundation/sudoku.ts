@@ -271,7 +271,8 @@ function applyHintToState(
 export function solvePuzzleWithHints(
 	puzzle: string | Grid,
 	maxSteps: number = 1000,
-	solvedGrid?: Grid,
+	maxDifficulty?: number,
+	solved?: Grid, // Add solved parameter
 ): SolveResult {
 	// Initialize starting state
 	let values: Values = {};
@@ -320,7 +321,7 @@ export function solvePuzzleWithHints(
 		}
 
 		// Get next hint
-		const hint = getHint(puzzle, values, candidates, solvedGrid);
+		const hint = getHint(puzzle, values, candidates, maxDifficulty, solved);
 
 		if (!hint) {
 			// No more hints available - puzzle cannot be solved with current techniques
@@ -378,7 +379,8 @@ export function solvePuzzleWithHints(
 export function evaluatePuzzleDifficulty(
 	puzzle: string | Grid,
 	maxSteps: number = 1000,
-	solvedGrid?: Grid,
+	maxTechniqueDifficulty?: number,
+	solved?: Grid, // Add solved parameter
 ): {
 	difficulty: number;
 	category: ReturnType<typeof difficultyToCategory>;
@@ -393,7 +395,12 @@ export function evaluatePuzzleDifficulty(
 		techniqueCount: number;
 	};
 } {
-	const solveResult = solvePuzzleWithHints(puzzle, maxSteps, solvedGrid);
+	const solveResult = solvePuzzleWithHints(
+		puzzle,
+		maxSteps,
+		maxTechniqueDifficulty,
+		solved,
+	);
 
 	if (!solveResult.success) {
 		// Puzzle couldn't be solved - assign maximum difficulty

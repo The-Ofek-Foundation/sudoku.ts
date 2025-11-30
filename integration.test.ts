@@ -35,7 +35,8 @@ describe('Sudoku Integration Tests', () => {
 
 		// Get hint for partial state
 		const partialValues = sudoku.parseGrid(puzzle) || {};
-		const hint = sudoku.getHint(puzzle, partialValues);
+		const candidates = sudoku.valuesToCandidates(partialValues);
+		const hint = sudoku.getHint(puzzle, partialValues, candidates);
 
 		const isComplete = Object.values(partialValues).every(
 			(v) => v.length === 1,

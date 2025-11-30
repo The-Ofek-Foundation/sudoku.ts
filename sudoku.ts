@@ -24,6 +24,7 @@ import {
 	difficultyToCategory,
 	solvePuzzleWithHints,
 	evaluatePuzzleDifficulty,
+	valuesToCandidates,
 } from './hints/index.js';
 
 // Export all types
@@ -80,6 +81,7 @@ export {
 	difficultyToCategory,
 	solvePuzzleWithHints,
 	evaluatePuzzleDifficulty,
+	valuesToCandidates,
 };
 
 // Default export with all functionality for convenient import
@@ -99,6 +101,7 @@ export default {
 	difficultyToCategory,
 	solvePuzzleWithHints,
 	evaluatePuzzleDifficulty,
+	valuesToCandidates,
 	// Backwards compatibility
 	test: parseGrid,
 };

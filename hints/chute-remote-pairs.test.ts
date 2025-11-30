@@ -1,5 +1,9 @@
 import { describe, it, expect } from 'vitest';
-import { getHint, getTechniqueDifficulty } from '../sudoku.js';
+import {
+	getHint,
+	getTechniqueDifficulty,
+	valuesToCandidates,
+} from '../sudoku.js';
 import type { Values } from '../types.js';
 
 describe('Chute Remote Pairs Strategy', () => {
@@ -92,7 +96,8 @@ describe('Chute Remote Pairs Strategy', () => {
 		// Note: This creates an invalid sudoku but tests the structure of the algorithm
 
 		// Try to get a hint
-		const hint = getHint('', values);
+		const candidates = valuesToCandidates(values);
+		const hint = getHint('', values, candidates);
 
 		// Should get some hint (probably simpler techniques first) without crashing
 		expect(hint).toBeDefined();
@@ -113,7 +118,8 @@ describe('Chute Remote Pairs Strategy', () => {
 			C3: '9',
 		};
 
-		const hint = getHint('', values);
+		const candidates = valuesToCandidates(values);
+		const hint = getHint('', values, candidates);
 		expect(hint).toBeDefined();
 	});
 
@@ -131,7 +137,8 @@ describe('Chute Remote Pairs Strategy', () => {
 			C3: '9',
 		};
 
-		const hint = getHint('', values);
+		const candidates = valuesToCandidates(values);
+		const hint = getHint('', values, candidates);
 
 		// Should get some hint but not crash
 		expect(hint).toBeDefined();

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { getHint } from './detector.js';
+import { getHint, valuesToCandidates } from './detector.js';
 
 describe('Simple Coloring Detection', () => {
 	it('should detect Simple Coloring Rule 2 patterns', () => {
@@ -26,7 +26,8 @@ describe('Simple Coloring Detection', () => {
 			// etc... (would need specific values that create the chain pattern)
 		};
 
-		const hint = getHint(testPuzzle, values);
+		const candidates = valuesToCandidates(values);
+		const hint = getHint(testPuzzle, values, candidates);
 
 		// The test would need a specific puzzle that actually triggers Simple Coloring
 		// For now, just check that the function doesn't crash and returns appropriate types
@@ -61,7 +62,8 @@ describe('Simple Coloring Detection', () => {
 			// Add some test values that create a Rule 4 scenario
 		};
 
-		const hint = getHint(testPuzzle, values);
+		const candidates = valuesToCandidates(values);
+		const hint = getHint(testPuzzle, values, candidates);
 
 		// Again, would need specific puzzle that triggers this rule
 		expect(hint).toBeDefined();
@@ -88,7 +90,8 @@ describe('Simple Coloring Detection', () => {
 
 		const values = {};
 
-		const hint = getHint(simplePuzzle, values);
+		const candidates = valuesToCandidates(values);
+		const hint = getHint(simplePuzzle, values, candidates);
 
 		// Should not find Simple Coloring on a solved puzzle
 		expect(hint?.type).not.toBe('simple_coloring');
@@ -110,7 +113,8 @@ describe('Simple Coloring Detection', () => {
 
 		const values = {};
 
-		const hint = getHint(puzzleWithEasierHints, values);
+		const candidates = valuesToCandidates(values);
+		const hint = getHint(puzzleWithEasierHints, values, candidates);
 
 		// Should find an easier technique (naked single) before Simple Coloring
 		expect(hint?.type).not.toBe('simple_coloring');

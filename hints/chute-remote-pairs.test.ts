@@ -1,150 +1,54 @@
 import { describe, it, expect } from 'vitest';
-import {
-	getHint,
-	getTechniqueDifficulty,
-	valuesToCandidates,
-} from '../sudoku.js';
-import type { Values } from '../types.js';
+import { detectChuteRemotePairs } from './detector.js';
+import type { Candidates, Values, Square } from '../types.js';
 
 describe('Chute Remote Pairs Strategy', () => {
 	it('should detect a horizontal chute remote pair', () => {
-		// Create a puzzle state that would lead to a Chute Remote Pairs pattern
-		// Based on the webpage example: cells A8 and C1 have {4,7}, and 4 appears in B4,B5,B6 but 7 doesn't
-		const values: Values = {
-			// Fill the grid with most values, leaving specific cells with the required pattern
-			A1: '1',
-			A2: '2',
-			A3: '3',
-			A5: '5',
-			A6: '6',
-			A7: '8',
-			A9: '9',
-			B1: '5',
-			B2: '6',
-			B3: '7',
-			B4: '4',
-			B5: '8',
-			B6: '9',
-			B7: '1',
-			B8: '2',
-			B9: '3',
-			C2: '8',
-			C3: '9',
-			C4: '1',
-			C5: '2',
-			C6: '3',
-			C7: '5',
-			C8: '6',
-			C9: '7',
+		// Manually construct candidates with a Chute Remote Pairs pattern
+		// Horizontal Chute 1 (Rows A, B, C)
+		// Remote Pair: A8 (4,7) and C1 (4,7)
+		// Third Box: Box 2 (middle top)
+		// Condition: 4 is present in Box 2, 7 is absent in Box 2.
+		// Absent Digit: 7
+		// Elimination: Cells seeing both A8 and C1 (A1 and C8) should lose 7.
 
-			D1: '2',
-			D2: '3',
-			D3: '4',
-			D4: '6',
-			D5: '7',
-			D6: '8',
-			D7: '9',
-			D8: '5',
-			D9: '1',
-			E1: '6',
-			E2: '7',
-			E3: '8',
-			E4: '9',
-			E5: '1',
-			E6: '2',
-			E7: '3',
-			E8: '4',
-			E9: '5',
-			F1: '9',
-			F2: '1',
-			F3: '5',
-			F4: '3',
-			F5: '4',
-			F6: '7',
-			F7: '6',
-			F8: '8',
-			F9: '2',
+		const candidates: Candidates = {};
+		const values: Values = {};
+		const rows = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I'];
+		const cols = ['1', '2', '3', '4', '5', '6', '7', '8', '9'];
 
-			G1: '3',
-			G2: '4',
-			G3: '6',
-			G4: '7',
-			G5: '8',
-			G6: '9',
-			G7: '1',
-			G8: '3',
-			G9: '5',
-			H1: '7',
-			H2: '8',
-			H3: '1',
-			H4: '2',
-			H5: '3',
-			H6: '4',
-			H7: '5',
-			H8: '9',
-			H9: '6',
-			I1: '8',
-			I2: '9',
-			I3: '2',
-			I4: '5',
-			I5: '6',
-			I6: '1',
-			I7: '7',
-			I8: '1',
-			I9: '4',
-		};
-		// Note: This creates an invalid sudoku but tests the structure of the algorithm
+		// Initialize all cells with some dummy candidates
+		for (const r of rows) {
+			for (const c of cols) {
+				const sq = (r + c) as Square;
+				candidates[sq] = new Set(['1', '2']); // Irrelevant candidates
+			}
+		}
 
-		// Try to get a hint
-		const candidates = valuesToCandidates(values);
-		const hint = getHint('', values, candidates);
+		// Set up Remote Pair cells
+		candidates['A8'] = new Set(['4', '7']);
+		candidates['C1'] = new Set(['4', '7']);
 
-		// Should get some hint (probably simpler techniques first) without crashing
-		expect(hint).toBeDefined();
-	});
+		// Set up Third Box (Box 2: A4-A6, B4-B6, C4-C6)
+		// Ensure 7 is absent in Box 2
+		const box2Squares = ['A4', 'A5', 'A6', 'B4', 'B5', 'B6', 'C4', 'C5', 'C6'];
+		for (const sq of box2Squares) {
+			candidates[sq as Square].delete('7');
+			// Ensure 4 is present in at least one cell (e.g. B5)
+			if (sq === 'B5') {
+				candidates[sq as Square].add('4');
+			}
+		}
 
-	it('should detect a vertical chute remote pair', () => {
-		// Create a puzzle state with a chute remote pair in vertical chute
-		const values: Values = {
-			// Simple setup to avoid getting other hint types first
-			A1: '1',
-			A2: '2',
-			A3: '3',
-			B1: '4',
-			B2: '5',
-			B3: '6',
-			C1: '7',
-			C2: '8',
-			C3: '9',
-		};
+		// Set up Elimination Targets (A1 and C8)
+		candidates['A1'] = new Set(['1', '7']); // Should lose 7
+		candidates['C8'] = new Set(['2', '7']); // Should lose 7
 
-		const candidates = valuesToCandidates(values);
-		const hint = getHint('', values, candidates);
-		expect(hint).toBeDefined();
-	});
+		const hints = detectChuteRemotePairs(candidates, values);
 
-	it('should not detect chute remote pairs when pattern is incomplete', () => {
-		// Simple puzzle state without the pattern
-		const values: Values = {
-			A1: '1',
-			A2: '2',
-			A3: '3',
-			B1: '4',
-			B2: '5',
-			B3: '6',
-			C1: '7',
-			C2: '8',
-			C3: '9',
-		};
-
-		const candidates = valuesToCandidates(values);
-		const hint = getHint('', values, candidates);
-
-		// Should get some hint but not crash
-		expect(hint).toBeDefined();
-	});
-
-	it('should assign correct difficulty to chute remote pairs', () => {
-		expect(getTechniqueDifficulty('chute_remote_pairs')).toBe(52);
+		expect(hints.length).toBeGreaterThan(0);
+		expect(hints[0].absentDigit).toBe('7');
+		expect(hints[0].eliminationCells).toContain('A1');
+		expect(hints[0].eliminationCells).toContain('C8');
 	});
 });

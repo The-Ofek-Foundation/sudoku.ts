@@ -727,7 +727,7 @@ function detectBoxLineReduction(candidates: Candidates): {
  * Detects X-Wing patterns - when a digit appears in only two positions in each of two parallel units,
  * and these positions are aligned in the perpendicular direction
  */
-function detectXWing(candidates: Candidates): {
+export function detectXWing(candidates: Candidates): {
 	digit: Digit;
 	squares: Square[];
 	primaryUnits: Unit[];
@@ -887,7 +887,7 @@ function detectXWing(candidates: Candidates): {
  * Detects Chute Remote Pairs - two bi-value cells with same candidates in same chute,
  * where only one candidate appears in the third box, allowing eliminations
  */
-function detectChuteRemotePairs(
+export function detectChuteRemotePairs(
 	candidates: Candidates,
 	values: Values,
 ): {
@@ -1131,7 +1131,7 @@ function detectChuteRemotePairs(
  * Detects Simple Coloring patterns - chains of bi-location links for a single digit
  * with eliminations based on color conflicts
  */
-function detectSimpleColoring(candidates: Candidates): {
+export function detectSimpleColoring(candidates: Candidates): {
 	digit: Digit;
 	chain: Square[];
 	chainColors: Record<Square, 'color1' | 'color2'>;

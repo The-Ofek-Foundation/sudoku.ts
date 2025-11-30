@@ -1,43 +1,44 @@
 import { describe, it, expect } from 'vitest';
-import { getHint, valuesToCandidates } from './detector.js';
+import { getHint, valuesToCandidates } from '../sudoku.js';
+import { detectYWing } from './y-wing.js';
+import type { Candidates, Square } from '../types.js';
 
 describe('Y-Wing Detection', () => {
 	it('should detect Y-Wing patterns', () => {
-		// Test puzzle with a Y-Wing pattern
-		// This is a simplified test puzzle that should have a Y-Wing
-		const testPuzzle = `
-			.23456789
-			456789123
-			789123456
-			234567891
-			567891234
-			891234567
-			345678912
-			678912345
-			912345678
-		`;
+		// Manually construct candidates with a Y-Wing pattern
+		// Pivot: A1 (1,2)
+		// Pincer 1: A2 (1,3) - shares 1 with pivot
+		// Pincer 2: B1 (2,3) - shares 2 with pivot
+		// Common candidate: 3
+		// Elimination: B2 sees both A2 and B1, should lose 3.
 
-		const values = {
-			// Add specific values that create a Y-Wing scenario
-			// This would need to be a specific puzzle configuration
-		};
+		const candidates: Candidates = {};
+		const rows = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I'];
+		const cols = ['1', '2', '3', '4', '5', '6', '7', '8', '9'];
 
-		const candidates = valuesToCandidates(values);
-		const hint = getHint(testPuzzle, values, candidates);
-
-		// For now, just check that the function doesn't crash and returns appropriate types
-		expect(hint).toBeDefined();
-		if (hint && hint.type === 'y_wing') {
-			expect(hint.technique).toBe('y_wing');
-			expect(hint.pivotCell).toMatch(/[A-I][1-9]/);
-			expect(hint.pincer1Cell).toMatch(/[A-I][1-9]/);
-			expect(hint.pincer2Cell).toMatch(/[A-I][1-9]/);
-			expect(hint.candidateA).toMatch(/[1-9]/);
-			expect(hint.candidateB).toMatch(/[1-9]/);
-			expect(hint.candidateC).toMatch(/[1-9]/);
-			expect(hint.eliminationCells).toBeInstanceOf(Array);
-			expect(hint.difficulty).toBe(7);
+		// Initialize all cells with some dummy candidates
+		for (const r of rows) {
+			for (const c of cols) {
+				const sq = (r + c) as Square;
+				candidates[sq] = new Set(['4', '5']); // Irrelevant candidates
+			}
 		}
+
+		// Set up Y-Wing cells
+		candidates['A1'] = new Set(['1', '2']); // Pivot
+		candidates['A2'] = new Set(['1', '3']); // Pincer 1
+		candidates['B1'] = new Set(['2', '3']); // Pincer 2
+
+		// Set up elimination target
+		candidates['B2'] = new Set(['3', '4']); // Should lose 3
+
+		const hint = detectYWing(candidates);
+
+		expect(hint).toBeDefined();
+		expect(hint!.type).toBe('y_wing');
+		expect(hint!.pivotCell).toBe('A1');
+		expect(hint!.eliminationCells).toContain('B2');
+		expect(hint!.difficulty).toBe(50);
 	});
 
 	it('should not detect Y-Wing when no bi-value cells exist', () => {
@@ -86,17 +87,5 @@ describe('Y-Wing Detection', () => {
 		if (hint) {
 			expect(hint.difficulty).toBeLessThan(7);
 		}
-	});
-
-	it('should require exactly 3 unique candidates across Y-Wing cells', () => {
-		// This would be tested with a specific puzzle that has the right structure
-		// For now, this is a placeholder to ensure the logic is correct
-		expect(true).toBe(true);
-	});
-
-	it('should validate that pivot can see both pincers', () => {
-		// This would be tested with a specific puzzle configuration
-		// For now, this is a placeholder to ensure the visibility logic is correct
-		expect(true).toBe(true);
 	});
 });

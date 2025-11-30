@@ -1,77 +1,64 @@
 import { describe, it, expect } from 'vitest';
-import { getHint, valuesToCandidates } from './detector.js';
+import { getHint, valuesToCandidates } from '../sudoku.js';
+import { detectSimpleColoring } from './detector.js';
+import type { Candidates, Square, Values } from '../types.js';
 
 describe('Simple Coloring Detection', () => {
-	it('should detect Simple Coloring Rule 2 patterns', () => {
-		// Test puzzle where Simple Coloring Rule 2 applies
-		// This puzzle should have a chain where same color appears twice in a unit
-		const testPuzzle = `
-			.2.6.8...
-			58...97..
-			....4....
-			37......5
-			6.......8
-			4......13
-			....2....
-			..98...36
-			...3.6.9.
-		`;
+	it('should detect Simple Coloring patterns', () => {
+		// Manually construct candidates with a Simple Coloring pattern
+		// Chain for digit 2:
+		// A1 (2) - C1 (2) [Col 1 Strong Link]
+		// C1 (2) - C6 (2) [Row C Strong Link]
+		// C6 (2) - A6 (2) [Col 6 Strong Link]
+		// Chain: A1(C1) - C1(C2) - C6(C1) - A6(C2)
+		// A5 sees A1 (Row A) and A6 (Row A).
+		// If A1 is 2 (C1), A5 cannot be 2.
+		// If A6 is 2 (C2), A5 cannot be 2.
+		// Since one of A1/A6 must be 2 (implied by chain logic? No, implied by coloring),
+		// Actually, A1 and A6 have different colors.
+		// If A1 is true, A5 false.
+		// If A1 is false -> C1 true -> C6 false -> A6 true -> A5 false.
+		// So A5 is always false.
 
-		const values = {
-			// Add some test values that create a Simple Coloring scenario
-			B1: '5',
-			B2: '8',
-			B8: '9',
-			B9: '7',
-			// etc... (would need specific values that create the chain pattern)
-		};
+		const candidates: Candidates = {};
+		const rows = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I'];
+		const cols = ['1', '2', '3', '4', '5', '6', '7', '8', '9'];
 
-		const candidates = valuesToCandidates(values);
-		const hint = getHint(testPuzzle, values, candidates);
-
-		// The test would need a specific puzzle that actually triggers Simple Coloring
-		// For now, just check that the function doesn't crash and returns appropriate types
-		expect(hint).toBeDefined();
-		if (hint && hint.type === 'simple_coloring') {
-			expect(hint.technique).toBe('simple_coloring');
-			expect(hint.digit).toMatch(/[1-9]/);
-			expect(hint.chain).toBeInstanceOf(Array);
-			expect(hint.chainColors).toBeDefined();
-			expect(hint.eliminationCells).toBeInstanceOf(Array);
-			expect(['rule_2', 'rule_4']).toContain(hint.rule);
-			expect(hint.difficulty).toBe(9);
+		// Initialize all cells with some dummy candidates
+		for (const r of rows) {
+			for (const c of cols) {
+				const sq = (r + c) as Square;
+				candidates[sq] = new Set(['1', '3']); // Irrelevant candidates
+			}
 		}
-	});
 
-	it('should detect Simple Coloring Rule 4 patterns', () => {
-		// Test puzzle where Simple Coloring Rule 4 applies
-		// This would be a puzzle where a cell can see both ends of a chain
-		const testPuzzle = `
-			.2.6.8...
-			58...97..
-			....4....
-			37......5
-			6.......8
-			4......13
-			....2....
-			..98...36
-			...3.6.9.
-		`;
+		// Set up Simple Coloring cells for digit 2
+		candidates['A1'] = new Set(['1', '2']);
+		candidates['C1'] = new Set(['1', '2']);
+		candidates['C6'] = new Set(['1', '2']);
+		candidates['A6'] = new Set(['1', '2']);
+		candidates['A5'] = new Set(['1', '2']); // Target
 
-		const values = {
-			// Add some test values that create a Rule 4 scenario
-		};
-
-		const candidates = valuesToCandidates(values);
-		const hint = getHint(testPuzzle, values, candidates);
-
-		// Again, would need specific puzzle that triggers this rule
-		expect(hint).toBeDefined();
-		if (hint && hint.type === 'simple_coloring' && hint.rule === 'rule_4') {
-			expect(hint.witnessCell).toBeDefined();
-			expect(hint.witnessCell).toMatch(/[A-I][1-9]/);
-			expect(hint.chainColors).toBeDefined();
+		// Ensure strong links by removing 2 from other cells in relevant units
+		// Col 1: Only A1, C1 have 2.
+		for (const r of rows) {
+			if (r !== 'A' && r !== 'C') candidates[(r + '1') as Square].delete('2');
 		}
+		// Row C: Only C1, C6 have 2.
+		for (const c of cols) {
+			if (c !== '1' && c !== '6') candidates[('C' + c) as Square].delete('2');
+		}
+		// Col 6: Only C6, A6 have 2.
+		for (const r of rows) {
+			if (r !== 'A' && r !== 'C') candidates[(r + '6') as Square].delete('2');
+		}
+		// Row A: A1, A5, A6 have 2. (Not a strong link for A1-A6 directly, but A1-A5-A6)
+
+		const hints = detectSimpleColoring(candidates);
+
+		expect(hints.length).toBeGreaterThan(0);
+		expect(hints[0].digit).toBe('2');
+		expect(hints[0].eliminationCells).toContain('A5');
 	});
 
 	it('should not detect Simple Coloring when no chains exist', () => {

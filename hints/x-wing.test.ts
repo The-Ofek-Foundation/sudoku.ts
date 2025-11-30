@@ -1,138 +1,58 @@
 import { describe, it, expect } from 'vitest';
-import { getHint, getTechniqueDifficulty } from '../sudoku.js';
-import type { Values } from '../types.js';
+import { detectXWing } from './detector.js';
+import type { Candidates, Square, Digit } from '../types.js';
+import { getTechniqueDifficulty } from '../sudoku.js';
 
 describe('X-Wing Strategy', () => {
-	it('should detect an X-Wing in rows eliminating in columns', () => {
-		// Create a puzzle state where digit 7 forms an X-Wing in rows 2 and 6
-		// The 7s appear only in columns 4 and 8 in both rows
-		const values: Values = {
-			// Fill in most of the puzzle, leaving an X-Wing pattern for digit 7
-			A1: '1',
-			A2: '2',
-			A3: '3',
-			A5: '5',
-			A6: '6',
-			A7: '8',
-			A9: '9',
-			B1: '4',
-			B2: '5',
-			B3: '6',
-			B5: '8',
-			B6: '9',
-			B7: '1',
-			B9: '3',
-			C1: '7',
-			C2: '8',
-			C3: '9',
-			C5: '2',
-			C6: '3',
-			C7: '4',
-			C9: '6',
+	it('should detect an X-Wing', () => {
+		// Manually construct candidates with an X-Wing pattern
+		// X-Wing for digit 7 in rows B and F (rows 1 and 5), columns 2 and 6
+		// B2, B6, F2, F6 have 7.
+		// Other cells in cols 2 and 6 also have 7 (to be eliminated).
 
-			D1: '2',
-			D2: '3',
-			D3: '4',
-			D5: '6',
-			D6: '7',
-			D7: '9',
-			D9: '1',
-			E1: '5',
-			E2: '6',
-			E3: '7',
-			E5: '9',
-			E6: '1',
-			E7: '2',
-			E9: '4',
-			F1: '8',
-			F2: '9',
-			F3: '1',
-			F5: '3',
-			F6: '4',
-			F7: '5',
-			F9: '7',
+		const candidates: Candidates = {};
+		const rows = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I'];
+		const cols = ['1', '2', '3', '4', '5', '6', '7', '8', '9'];
 
-			G1: '3',
-			G2: '4',
-			G3: '5',
-			G5: '7',
-			G6: '8',
-			G7: '6',
-			G9: '2',
-			H1: '6',
-			H2: '7',
-			H3: '8',
-			H5: '1',
-			H6: '2',
-			H7: '3',
-			H9: '5',
-			I1: '9',
-			I2: '1',
-			I3: '2',
-			I5: '4',
-			I6: '5',
-			I7: '7',
-			I9: '8',
-		};
+		// Initialize all cells with some dummy candidates
+		for (const r of rows) {
+			for (const c of cols) {
+				const sq = (r + c) as Square;
+				candidates[sq] = new Set(['1', '2']);
+			}
+		}
 
-		// Try to get a hint - should detect X-Wing or at least return some valid hint
-		const hint = getHint('', values);
+		// Set up X-Wing cells
+		// Row B (index 1): 7 only in B2 and B6
+		candidates['B2'] = new Set(['1', '7']);
+		candidates['B6'] = new Set(['2', '7']);
+		// Clear 7 from other cells in Row B
+		for (const c of cols) {
+			if (c !== '2' && c !== '6') {
+				candidates[('B' + c) as Square].delete('7');
+			}
+		}
 
-		// For now, just check that we get a hint without errors
-		// In a real X-Wing scenario, we'd have a more specific puzzle setup
-		expect(hint).toBeDefined();
-	});
+		// Row F (index 5): 7 only in F2 and F6
+		candidates['F2'] = new Set(['1', '7']);
+		candidates['F6'] = new Set(['2', '7']);
+		// Clear 7 from other cells in Row F
+		for (const c of cols) {
+			if (c !== '2' && c !== '6') {
+				candidates[('F' + c) as Square].delete('7');
+			}
+		}
 
-	it('should detect an X-Wing in columns eliminating in rows', () => {
-		// Create a puzzle state where digit 5 forms an X-Wing in columns 3 and 7
-		const values: Values = {
-			// Similar setup but for column-based X-Wing
-			A1: '1',
-			A2: '2',
-			A4: '4',
-			A5: '6',
-			A6: '7',
-			A8: '8',
-			A9: '9',
-			B1: '4',
-			B2: '6',
-			B4: '7',
-			B5: '8',
-			B6: '9',
-			B8: '1',
-			B9: '3',
-			C1: '7',
-			C2: '8',
-			C4: '1',
-			C5: '2',
-			C6: '3',
-			C8: '4',
-			C9: '6',
-		};
+		// Add 7 to other cells in Col 2 and Col 6 (targets for elimination)
+		candidates['A2'] = new Set(['1', '7']); // Should be eliminated
+		candidates['C6'] = new Set(['2', '7']); // Should be eliminated
 
-		const hint = getHint('', values);
-		expect(hint).toBeDefined();
-	});
+		const hints = detectXWing(candidates);
 
-	it('should not detect X-Wing when pattern is incomplete', () => {
-		// Simple puzzle state without X-Wing pattern
-		const values: Values = {
-			A1: '1',
-			A2: '2',
-			A3: '3',
-			B1: '4',
-			B2: '5',
-			B3: '6',
-			C1: '7',
-			C2: '8',
-			C3: '9',
-		};
-
-		const hint = getHint('', values);
-
-		// Should get some hint (possibly easier techniques) but not crash
-		// The test mainly ensures our X-Wing code doesn't break the hint system
-		expect(hint).toBeDefined();
+		expect(hints.length).toBeGreaterThan(0);
+		expect(hints[0].digit).toBe('7');
+		expect(hints[0].eliminationCells).toContain('A2');
+		expect(hints[0].eliminationCells).toContain('C6');
 	});
 
 	it('should assign correct difficulty to X-Wing', () => {
